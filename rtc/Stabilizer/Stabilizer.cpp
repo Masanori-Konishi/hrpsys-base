@@ -63,6 +63,8 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     // <rtc-template block="initializer">
     m_qCurrentIn("qCurrent", m_qCurrent),
     m_qRefIn("qRef", m_qRef),
+    m_rateIn("rate", m_rate),
+    m_accIn("acc", m_acc),
     m_rpyIn("rpy", m_rpy),
     m_zmpRefIn("zmpRef", m_zmpRef),
     m_StabilizerServicePort("StabilizerService"),
@@ -74,6 +76,8 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_qRefSeqIn("qRefSeq", m_qRefSeq),
     m_walkingStatesIn("walkingStates", m_walkingStates),
     m_sbpCogOffsetIn("sbpCogOffset", m_sbpCogOffset),
+    m_SegwaySensorsIn("SegwaySensors", m_SegwaySensors),
+    m_NinebotSensorsIn("NinebotSensors", m_NinebotSensors),
     m_qRefOut("q", m_qRef),
     m_tauOut("tau", m_tau),
     m_zmpOut("zmp", m_zmp),
@@ -98,6 +102,7 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_allRefWrenchOut("allRefWrench", m_allRefWrench),
     m_allEECompOut("allEEComp", m_allEEComp),
     m_debugDataOut("debugData", m_debugData),
+    m_beepCommandOut("beepCommand", m_beepCommand),
     control_mode(MODE_IDLE),
     st_algorithm(OpenHRP::StabilizerService::TPCC),
     emergency_check_mode(OpenHRP::StabilizerService::NO_CHECK),
@@ -126,6 +131,8 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   // Set InPort buffers
   addInPort("qCurrent", m_qCurrentIn);
   addInPort("qRef", m_qRefIn);
+  addInPort("rate", m_rateIn);
+  addInPort("acc", m_accIn);
   addInPort("rpy", m_rpyIn);
   addInPort("zmpRef", m_zmpRefIn);
   addInPort("basePosIn", m_basePosIn);
@@ -136,6 +143,8 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addInPort("qRefSeq", m_qRefSeqIn);
   addInPort("walkingStates", m_walkingStatesIn);
   addInPort("sbpCogOffset", m_sbpCogOffsetIn);
+  addInPort("SegwaySensors", m_SegwaySensorsIn);
+  addInPort("NinebotSensors", m_NinebotSensorsIn);
 
   // Set OutPort buffer
   addOutPort("q", m_qRefOut);
@@ -162,6 +171,7 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("allRefWrench", m_allRefWrenchOut);
   addOutPort("allEEComp", m_allEECompOut);
   addOutPort("debugData", m_debugDataOut);
+  addOutPort("beepCommand", m_beepCommandOut);
   
   // Set service provider to Ports
   m_StabilizerServicePort.registerProvider("service0", "StabilizerService", m_service0);
@@ -413,7 +423,64 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   limb_stretch_avoidance_vlimit[0] = -100 * 1e-3 * dt; // lower limit
   limb_stretch_avoidance_vlimit[1] = 50 * 1e-3 * dt; // upper limit
   root_rot_compensation_limit[0] = root_rot_compensation_limit[1] = deg2rad(90.0);
+  root_pos_compensation_limit_y = 0.025;
   detection_count_to_air = static_cast<int>(0.0 / dt);
+  segway_av_yaw_pgain = 0.0;
+  segway_av_yaw_igain = 0.0;
+  segway_av_yaw_dgain = 0.0;
+  segway_lv_x_pgain = 0.0;
+  segway_lv_x_igain = 0.0;
+  segway_lv_x_dgain = 0.0;
+  segway_av_yaw_target = 0.0;
+  segway_lv_x_target = 0.0;
+  segway_lv_x_act = 0.0;
+  segway2_oneleg_roll_ps3joy = 0.0;
+  segway_learning_mode = false;
+  segway_learning_mode_lv_x = false;
+  segway_ride_mode = false;
+  segway2_ride_mode = false;
+  segway_learning_mode_after_ride = false;
+  segway_learning_mode_during_ride = false;
+  segway_learning_grad_J = hrp::Vector3::Zero();
+  segway_learning_grad_J_lv_x = hrp::Vector3::Zero();
+  segway_learning_av_yaw_pid_gain = hrp::Vector3::Zero();
+  segway_learning_lv_x_pid_gain = hrp::Vector3::Zero();
+  //segway_learning_rate_pid = hrp::Vector3(std::pow(10.0, -8.0), std::pow(10.0, -8.0), std::pow(10.0, -8.0));
+  //segway_learning_rate_pid = hrp::Vector3(std::pow(10.0, -7.0), std::pow(10.0, -7.0), std::pow(10.0, -8.0));
+  //segway_learning_rate_pid = hrp::Vector3(std::pow(10.0, -7.0), std::pow(10.0, -7.0), std::pow(10.0, -9.0));
+  //segway_learning_rate_pid = hrp::Vector3(0.5*std::pow(10.0, -7.0), 0.5*std::pow(10.0, -7.0), std::pow(10.0, -9.0));
+  //segway_learning_rate_pid = hrp::Vector3(std::pow(10.0, -8.0), std::pow(10.0, -8.0), std::pow(10.0, -9.0)); // converge rapidly (If segway_learning_mode_lv_x is also ON, robot may oscillate around Yaw.)
+  segway_learning_rate_pid = hrp::Vector3(std::pow(10.0, -9.0), std::pow(10.0, -9.0), std::pow(10.0, -10.0)); // converge slowly
+  //segway_learning_rate_pid_lv_x = hrp::Vector3(std::pow(10.0, -6.0), std::pow(10.0, -6.0), std::pow(10.0, -7.0));
+  segway_learning_rate_pid_lv_x = hrp::Vector3(4.0*std::pow(10.0, -7.0), 4.0*std::pow(10.0, -7.0), std::pow(10.0, -7.0)); // after landing version
+  //segway_learning_rate_etaQ = 0.1;
+  //segway_learning_rate_etaR = 100000.0;
+  //segway_learning_rate_etaQ = std::pow(10.0, -6.0) * 20000.0;
+  //segway_learning_rate_etaR = 20000.0;
+  //segway_learning_rate_etaQ = std::pow(10.0, -6.0) * 10000.0;
+  //segway_learning_rate_etaR = 10000.0;
+  segway_learning_rate_etaQ = std::pow(10.0, -6.0) * 1000.0;
+  segway_learning_rate_etaR = 1000.0;
+  ninebot_roll_ps3joy = 0.0;
+  ninebot_lv_x_pgain = 0.0;
+  ninebot_lv_x_igain = 0.0;
+  ninebot_lv_x_dgain = 0.0;
+  //ninebot_test_gain = 0.1;
+  ninebot_test_gain = 0.0;
+  ninebot_learning_mode_lv_x = false;
+  ninebot_learning_grad_J_lv_x = hrp::Vector3::Zero();
+  ninebot_learning_lv_x_pid_gain = hrp::Vector3::Zero();
+  ninebot_learning_rate_pid_lv_x = hrp::Vector3(1.0*std::pow(10.0, -4.0), 1.0*std::pow(10.0, -5.0), 5.0*std::pow(10.0, -6.0));
+  ninebot_start_learning_ps3joy = 0;
+  ninebot_stop_learning_ps3joy = 0;
+  ninebot_vd_on_ps3joy = 0;
+  ninebot_vd_off_ps3joy = 0;
+  seesaw_balance_mode = false;
+  seesaw_balance_pgain = 0.0;
+  seesaw_balance_dgain = 0.0;
+  seesaw_balance_mode_zengo = false;
+  seesaw_balance_pgain_zengo = 0.0;
+  seesaw_balance_dgain_zengo = 0.0;
 
   // parameters for RUNST
   double ke = 0, tc = 0;
@@ -469,6 +536,17 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
 
   //
   act_cogvel_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero())); // [Hz]
+  //
+  differential_av_yaw_error_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  differential2_av_yaw_error_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(1.0, dt, 0.0)); // [Hz]
+  differential2_av_yaw_error_LPF_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  differential_lv_x_error_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  differential2_lv_x_error_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  differential_m_rate_data_avz_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  differential_segway_lv_x_act_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  //
+  foot_roll_tilt_angvel_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
+  foot_pitch_tilt_angvel_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
 
   // for debug output
   m_originRefZmp.data.x = m_originRefZmp.data.y = m_originRefZmp.data.z = 0.0;
@@ -480,7 +558,12 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   m_originActCogVel.data.x = m_originActCogVel.data.y = m_originActCogVel.data.z = 0.0;
   m_allRefWrench.data.length(stikp.size() * 6); // 6 is wrench dim
   m_allEEComp.data.length(stikp.size() * 6); // 6 is pos+rot dim
-  m_debugData.data.length(1); m_debugData.data[0] = 0.0;
+  // m_debugData.data.length(1); m_debugData.data[0] = 0.0;
+  m_debugData.data.length(88); m_debugData.data[0] = 0.0; m_debugData.data[1] = 0.0; m_debugData.data[2] = 0.0; m_debugData.data[3] = 0.0; m_debugData.data[4] = 0.0; m_debugData.data[5] = 0.0; m_debugData.data[6] = 0.0; m_debugData.data[7] = 0.0; m_debugData.data[8] = 0.0; m_debugData.data[9] = 0.0; m_debugData.data[10] = 0.0; m_debugData.data[11] = 0.0; m_debugData.data[12] = 0.0; m_debugData.data[13] = 0.0; m_debugData.data[14] = 0.0; m_debugData.data[15] = 0.0; m_debugData.data[16] = 0.0; m_debugData.data[17] = 0.0; m_debugData.data[18] = 0.0; m_debugData.data[19] = 0.0; m_debugData.data[20] = 0.0; m_debugData.data[21] = 0.0; m_debugData.data[22] = 0.0; m_debugData.data[23] = 0.0; m_debugData.data[24] = 0.0; m_debugData.data[25] = 0.0; m_debugData.data[26] = 0.0; m_debugData.data[27] = 0.0; m_debugData.data[28] = 0.0; m_debugData.data[29] = 0.0; m_debugData.data[30] = 0.0; m_debugData.data[31] = 0.0; m_debugData.data[32] = 0.0; m_debugData.data[33] = 0.0; m_debugData.data[34] = 0.0; m_debugData.data[35] = 0.0; m_debugData.data[36] = 0.0; m_debugData.data[37] = 0.0; m_debugData.data[38] = 0.0; m_debugData.data[39] = 0.0; m_debugData.data[40] = 0.0; m_debugData.data[41] = 0.0; m_debugData.data[42] = 0.0; m_debugData.data[43] = 0.0; m_debugData.data[44] = 0.0; m_debugData.data[45] = 0.0; m_debugData.data[46] = 0.0; m_debugData.data[47] = 0.0; m_debugData.data[48] = 0.0; m_debugData.data[49] = 0.0; m_debugData.data[50] = 0.0; m_debugData.data[51] = 0.0; m_debugData.data[52] = 0.0; m_debugData.data[53] = 0.0; m_debugData.data[54] = 0.0; m_debugData.data[55] = 0.0; m_debugData.data[56] = 0.0; m_debugData.data[57] = 0.0; m_debugData.data[58] = 0.0; m_debugData.data[59] = 0.0; m_debugData.data[60] = 0.0; m_debugData.data[61] = 0.0; m_debugData.data[62] = 0.0; m_debugData.data[63] = 0.0; m_debugData.data[64] = 0.0; m_debugData.data[65] = 0.0; m_debugData.data[66] = 0.0; m_debugData.data[67] = 0.0; m_debugData.data[68] = 0.0; m_debugData.data[69] = 0.0; m_debugData.data[70] = 0.0; m_debugData.data[71] = 0.0; m_debugData.data[72] = 0.0; m_debugData.data[73] = 0.0; m_debugData.data[74] = 0.0; m_debugData.data[75] = 0.0; m_debugData.data[76] = 0.0; m_debugData.data[77] = 0.0; m_debugData.data[78] = 0.0; m_debugData.data[79] = 0.0; m_debugData.data[80] = 0.0; m_debugData.data[81] = 0.0; m_debugData.data[82] = 0.0; m_debugData.data[83] = 0.0; m_debugData.data[84] = 0.0; m_debugData.data[85] = 0.0; m_debugData.data[86] = 0.0; m_debugData.data[87] = 0.0;
+  m_SegwaySensors.data.length(6); m_SegwaySensors.data[0] = 0.0; m_SegwaySensors.data[1] = 0.0; m_SegwaySensors.data[2] = 0.0; m_SegwaySensors.data[3] = 0.0; m_SegwaySensors.data[4] = 0.0; m_SegwaySensors.data[5] = 0.0;
+  m_NinebotSensors.data.length(5); m_NinebotSensors.data[0] = 0.0; m_NinebotSensors.data[1] = 0; m_NinebotSensors.data[2] = 0; m_NinebotSensors.data[3] = 0; m_NinebotSensors.data[4] = 0;
+
+  m_beepCommand.data.length(bc.get_num_beep_info());
 
   //
   szd = new SimpleZMPDistributor(dt);
@@ -543,6 +626,76 @@ RTC::ReturnCode_t Stabilizer::onDeactivated(RTC::UniqueId ec_id)
   return RTC::RTC_OK;
 }
 
+double av_yaw_error;
+double tmp_av_yaw_error, tmp2_av_yaw_error, tmp_differential_av_yaw_error;
+double integral_av_yaw_error = 0.0;
+double differential_av_yaw_error, differential2_av_yaw_error, differential2_av_yaw_error_LPF;
+double lv_x_error;
+double tmp_lv_x_error, tmp_differential_lv_x_error;
+double integral_lv_x_error = 0.0;
+double differential_lv_x_error, differential2_lv_x_error;
+double model_truth_param = 12000.0;
+double model_truth_param_lvx = 1000.0;
+double model_truth_param_ninebot_lvx = 1000.0;
+double tmp_m_rate_data_avz, tmp_segway_lv_x_act;
+double differential_m_rate_data_avz, differential_segway_lv_x_act;
+double dp_input, lvx_dp_input;
+double dp_input_delay = 0.0;
+double lvx_dp_input_delay = 0.0;
+double time_const_dp = 1.0;
+double time_const_dp_lvx = 1.0;
+double time_const_dp_ninebot_lvx = 1.0;
+double model_estimate_input, lvx_model_estimate_input;
+double model_estimate_output, lvx_model_estimate_output;
+double model_estimate_param = 0.0;
+// double model_estimate_gamma = std::pow(10.0, -7.0);
+// double model_estimate_gamma = std::pow(10.0, -5.0);
+double model_estimate_gamma = std::pow(10.0, -4.0);
+// double model_estimate_gamma = std::pow(10.0, -3.0);
+// double model_estimate_gamma = 100;
+double coeff_scale_A, coeff_scale_B, coeff_scale_C, coeff_scale_D;
+double coeff_scale_A_lvx, coeff_scale_B_lvx, coeff_scale_C_lvx, coeff_scale_D_lvx;
+double coeff_scale_A_ninebot_lvx, coeff_scale_B_ninebot_lvx, coeff_scale_C_ninebot_lvx, coeff_scale_D_ninebot_lvx;
+hrp::Vector3 dy_dpid;
+hrp::Vector3 dy_dpid_lvx;
+hrp::Vector3 dy_dpid_ninebot_lvx;
+hrp::Vector3 tmp1_dy_dpid = hrp::Vector3::Zero();
+hrp::Vector3 tmp2_dy_dpid = hrp::Vector3::Zero();
+hrp::Vector3 tmp3_dy_dpid = hrp::Vector3::Zero();
+hrp::Vector3 tmp1_dy_dpid_lvx = hrp::Vector3::Zero();
+hrp::Vector3 tmp2_dy_dpid_lvx = hrp::Vector3::Zero();
+hrp::Vector3 tmp3_dy_dpid_lvx = hrp::Vector3::Zero();
+hrp::Vector3 tmp1_dy_dpid_ninebot_lvx = hrp::Vector3::Zero();
+hrp::Vector3 tmp2_dy_dpid_ninebot_lvx = hrp::Vector3::Zero();
+hrp::Vector3 tmp3_dy_dpid_ninebot_lvx = hrp::Vector3::Zero();
+hrp::Vector3 minus_grad_J = hrp::Vector3::Zero();
+hrp::Vector3 minus_grad_J_lvx = hrp::Vector3::Zero();
+hrp::Vector3 minus_grad_J_ninebot_lvx = hrp::Vector3::Zero();
+double SUM_learning_time = 0.0;
+double SUM_learning_time_lvx = 0.0;
+double SUM_learning_time_ninebot_lvx = 0.0;
+double MAX_learning_time = 2.0; // [s]
+double MAX_learning_time_lvx = 2.0; // [s]
+double MAX_learning_time_ninebot_lvx = 2.0; // [s]
+double tmp_segway_av_yaw_igain;
+double tmp_segway_lv_x_igain;
+double tmp_ninebot_lv_x_igain;
+double counter_eval_J = 0.0;
+double counter_eval_J_lvx = 0.0;
+double counter_eval_J_ninebot_lvx = 0.0;
+double eval_J = 0.0;
+double eval_J_lvx = 0.0;
+double eval_J_ninebot_lvx = 0.0;
+bool converge_checker = false;
+int converge_judge_count = 0;
+bool rleg_support_trigger = false;
+bool lleg_support_trigger = false;
+int legs_ride_phase = 0;
+bool damping_gain_learning_flag = false;
+double rot_damping_gain_y_max = 22.0 * 100;
+double rot_damping_gain_y_min = 6.0;
+bool ninebot_always_vd_on_flag = false;
+
 #define DEBUGP ((m_debugLevel==1 && loop%200==0) || m_debugLevel > 1 )
 #define DEBUGP2 (loop%10==0)
 RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
@@ -555,6 +708,12 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
   }
   if (m_qCurrentIn.isNew()) {
     m_qCurrentIn.read();
+  }
+  if (m_rateIn.isNew()) {
+    m_rateIn.read();
+  }
+  if (m_accIn.isNew()) {
+    m_accIn.read();
   }
   if (m_rpyIn.isNew()) {
     m_rpyIn.read();
@@ -616,6 +775,12 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
     sbp_cog_offset(0) = m_sbpCogOffset.data.x;
     sbp_cog_offset(1) = m_sbpCogOffset.data.y;
     sbp_cog_offset(2) = m_sbpCogOffset.data.z;
+  }
+  if (m_SegwaySensorsIn.isNew()) {
+    m_SegwaySensorsIn.read();
+  }
+  if (m_NinebotSensorsIn.isNew()) {
+    m_NinebotSensorsIn.read();
   }
 
   if (is_legged_robot) {
@@ -740,6 +905,8 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_currentBasePosOut.write();
       m_debugData.tm = m_qRef.tm;
       m_debugDataOut.write();
+      m_beepCommand.tm = m_qRef.tm;
+      if (bc.isWritable()) m_beepCommandOut.write();
     }
     m_qRefOut.write();
     // emergencySignal
@@ -883,6 +1050,70 @@ void Stabilizer::getActualParameters ()
     for (size_t i = 0; i < 2; i++) {
       new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i);
     }
+    //std::cerr << "hrp::rpyFromRot(act_ee_R[0])(0): " << hrp::rpyFromRot(act_ee_R[0])(0) << " [rad]" << std::endl;
+    //std::cerr << "hrp::rpyFromRot(act_ee_R[1])(0): " << hrp::rpyFromRot(act_ee_R[1])(0) << " [rad]" << std::endl;
+    if (control_mode == MODE_ST) {
+      //if (act_cog(1) > 0.02) {
+      //  std::cerr << "Over: act_cog > 0.02" << std::endl;
+      //}
+      // set new_refzmp x (20180718)
+      new_refzmp(0) = new_refzmp(0) - ninebot_lv_x_pgain * lv_x_error
+                                    - ninebot_lv_x_igain * integral_lv_x_error
+                                    - ninebot_lv_x_dgain * differential_lv_x_error; // new refzmp x [m]
+      // set new_refzmp y (20180714)
+      //new_refzmp(1) = new_refzmp(1) + ninebot_roll_ps3joy; // new refzmp y [m]
+      //new_refzmp(1) = new_refzmp(1) - segway2_oneleg_roll_ps3joy; // new refzmp y [m] (20191205)
+      //new_refzmp(1) = new_refzmp(1) + 1.25 * (0.0 - hrp::rpyFromRot(act_ee_R[0])(0)); // new refzmp y [m] (20191209)
+      //new_refzmp(1) = new_refzmp(1) + 0.5 * (0.0 - hrp::rpyFromRot(act_ee_R[0])(0)); // new refzmp y [m]
+      //new_refzmp(1) = new_refzmp(1) - 0.5 * (0.0 - hrp::rpyFromRot(act_ee_R[0])(0)); // new refzmp y [m]
+      if (seesaw_balance_mode) { // 20200807
+        foot_roll_tilt_angle = ( hrp::rpyFromRot(act_ee_R[0])(0) + hrp::rpyFromRot(act_ee_R[1])(0) ) / 2.0; // average of RLEG foot roll tilt angle [rad] and LLEG foot roll tilt angle [rad]
+        //std::cerr << "foot_roll_tilt_angle: " << foot_roll_tilt_angle << " [rad]" << std::endl;
+        foot_roll_tilt_angvel = (foot_roll_tilt_angle - prev_foot_roll_tilt_angle)/dt;
+        foot_roll_tilt_angvel = foot_roll_tilt_angvel_filter->passFilter(foot_roll_tilt_angvel);
+        prev_foot_roll_tilt_angle = foot_roll_tilt_angle;
+        new_refzmp(1) += seesaw_balance_pgain * transition_smooth_gain * (0.0 - foot_roll_tilt_angle) + seesaw_balance_dgain * transition_smooth_gain * (0.0 - foot_roll_tilt_angvel); // new refzmp y [m] (20200809)
+        //new_refzmp(1) += -0.05; // new refzmp y [m] test (nearly "- default_zmp_offsets")
+      }
+      if (seesaw_balance_mode_zengo) { // 20210213
+        foot_pitch_tilt_angle = ( hrp::rpyFromRot(act_ee_R[0])(1) + hrp::rpyFromRot(act_ee_R[1])(1) ) / 2.0; // average of RLEG foot pitch tilt angle [rad] and LLEG foot pitch tilt angle [rad]
+        //std::cerr << "foot_pitch_tilt_angle: " << foot_pitch_tilt_angle << " [rad]" << std::endl;
+        foot_pitch_tilt_angvel = (foot_pitch_tilt_angle - prev_foot_pitch_tilt_angle)/dt;
+        foot_pitch_tilt_angvel = foot_pitch_tilt_angvel_filter->passFilter(foot_pitch_tilt_angvel);
+        prev_foot_pitch_tilt_angle = foot_pitch_tilt_angle;
+        new_refzmp(0) += seesaw_balance_pgain_zengo * transition_smooth_gain * (0.0 - foot_pitch_tilt_angle) + seesaw_balance_dgain_zengo * transition_smooth_gain * (0.0 - foot_pitch_tilt_angvel); // new refzmp x [m] (20210213)
+        //new_refzmp(0) += -0.05; // new refzmp x [m] test (nearly "- default_zmp_offsets")
+      }
+      hrp::Vector3 act_cog_plot=foot_origin_rot * act_cog;
+      hrp::Vector3 act_cogvel_plot=foot_origin_rot * act_cogvel;
+      hrp::Vector3 act_zmp_plot=foot_origin_rot * act_zmp;
+      hrp::Vector3 ref_cog_plot=foot_origin_rot * ref_cog;
+      hrp::Vector3 ref_cogvel_plot=foot_origin_rot * ref_cogvel;
+      hrp::Vector3 ref_zmp_plot=foot_origin_rot * ref_zmp;
+      m_debugData.data[66] = act_cog_plot(1); // x [m]
+      m_debugData.data[67] = act_cogvel_plot(1); // dx [m/s]
+      m_debugData.data[68] = act_zmp_plot(1); // p [m]
+      m_debugData.data[69] = foot_roll_tilt_angle; // phi [rad]
+      m_debugData.data[70] = foot_roll_tilt_angvel; // dphi [rad/s]
+      m_debugData.data[71] = new_refzmp(1); // u [m]
+      m_debugData.data[72] = ref_cog_plot(1); // ref x (from walking pattern) [m]
+      m_debugData.data[73] = ref_cogvel_plot(1); // ref dx (from walking pattern) [m/s]
+      m_debugData.data[74] = ref_zmp_plot(1); // ref p (from walking pattern) [m]
+      m_debugData.data[75] = 0.0; // ref phi [rad]
+      m_debugData.data[76] = 0.0; // ref dphi [rad/s]
+      //
+      m_debugData.data[77] = act_cog_plot(0); // x zengo [m]
+      m_debugData.data[78] = act_cogvel_plot(0); // dx zengo [m/s]
+      m_debugData.data[79] = act_zmp_plot(0); // p zengo [m]
+      m_debugData.data[80] = foot_pitch_tilt_angle; // theta [rad]
+      m_debugData.data[81] = foot_pitch_tilt_angvel; // dtheta [rad/s]
+      m_debugData.data[82] = new_refzmp(0); // u zengo [m]
+      m_debugData.data[83] = ref_cog_plot(0); // ref x zengo (from walking pattern) [m]
+      m_debugData.data[84] = ref_cogvel_plot(0); // ref dx zengo (from walking pattern) [m/s]
+      m_debugData.data[85] = ref_zmp_plot(0); // ref p zengo (from walking pattern) [m]
+      m_debugData.data[86] = 0.0; // ref theta [rad]
+      m_debugData.data[87] = 0.0; // ref dtheta [rad/s]
+    }
     if (DEBUGP) {
       // All state variables are foot_origin coords relative
       std::cerr << "[" << m_profile.instance_name << "] state values" << std::endl;
@@ -901,6 +1132,11 @@ void Stabilizer::getActualParameters ()
                 << "new_zmp    = " << hrp::Vector3(tmpnew_refzmp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]"))
                 << ", dif_zmp    = " << hrp::Vector3((tmpnew_refzmp-ref_zmp)*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]")) << "[mm]" << std::endl;
     }
+    // print (20180714)
+    //std::cerr << "[hoge1]   "
+    //          << "[" << m_profile.instance_name << "]   "
+    //          << "ref_zmp    = " << hrp::Vector3(ref_zmp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]"))
+    //          << ", act_zmp    = " << hrp::Vector3(act_zmp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]")) << "[mm]" << std::endl;
 
     std::vector<std::string> ee_name;
     // distribute new ZMP into foot force & moment
@@ -992,6 +1228,24 @@ void Stabilizer::getActualParameters ()
       new_refzmp = foot_origin_rot.transpose() * (new_refzmp - foot_origin_pos);
     }
 
+    segway_av_yaw_target = m_SegwaySensors.data[0];
+    segway_lv_x_target = m_SegwaySensors.data[1];
+    segway_lv_x_act = m_SegwaySensors.data[2];
+    m_debugData.data[47] = m_SegwaySensors.data[3]; // /zed/odom/pose/pose/position/x
+    m_debugData.data[48] = m_SegwaySensors.data[4]; // /zed/odom/pose/pose/orientation/w
+    segway2_oneleg_roll_ps3joy = m_SegwaySensors.data[5];
+    ninebot_roll_ps3joy = m_NinebotSensors.data[0];
+    ninebot_start_learning_ps3joy = m_NinebotSensors.data[1];
+    ninebot_stop_learning_ps3joy = m_NinebotSensors.data[2];
+    ninebot_vd_on_ps3joy = m_NinebotSensors.data[3];
+    ninebot_vd_off_ps3joy = m_NinebotSensors.data[4];
+    m_debugData.data[23] = ref_zmp(0); // ref zmp x [m]
+    m_debugData.data[24] = act_zmp(0); // act zmp x [m]
+    m_debugData.data[25] = ref_zmp(1); // ref zmp y [m]
+    m_debugData.data[26] = act_zmp(1); // act zmp y [m]
+    m_debugData.data[27] = hrp::rpyFromRot(act_ee_R[0])(1); // RLEG foot pitch tilt angle [rad]
+    m_debugData.data[28] = hrp::rpyFromRot(act_ee_R[1])(1); // LLEG foot pitch tilt angle [rad]
+    //std::cerr << "hrp::rpyFromRot(act_ee_R[0])(0) = " << hrp::rpyFromRot(act_ee_R[0])(0) << "[rad]" << std::endl; // RLEG foot roll tilt angle [rad] (20191209)
     // foor modif
     if (control_mode == MODE_ST) {
       hrp::Vector3 f_diff(hrp::Vector3::Zero());
@@ -1059,8 +1313,428 @@ void Stabilizer::getActualParameters ()
         }
         //act_total_foot_origin_moment += (target->R * ikp.localCOPPos + target->p).cross(sensor_force) + ee_moment;
         act_total_foot_origin_moment += (target->R * ikp.localp + target->p - foot_origin_pos).cross(sensor_force) + ee_moment;
+        // ( i == 1 ) is Lleg.
+        if ( i == 1 ) {
+          m_debugData.data[38] = ikp.ref_moment(0); // Lleg X tau_d
+          m_debugData.data[39] = ee_moment(0); // Lleg X tau
+          m_debugData.data[42] = ikp.d_foot_rpy(0); // Lleg X delta
+          m_debugData.data[40] = ikp.ref_moment(1); // Lleg Y tau_d
+          m_debugData.data[41] = ee_moment(1); // Lleg Y tau
+          m_debugData.data[43] = ikp.d_foot_rpy(1); // Lleg Y delta
+          if (damping_gain_learning_flag) {
+            ikp.eefm_rot_damping_gain(1) = ikp.eefm_rot_damping_gain(1) - segway_learning_rate_etaQ * std::pow(ikp.ref_moment(1) - ee_moment(1), 2.0) / ikp.eefm_rot_damping_gain(1) + segway_learning_rate_etaR * std::pow(ikp.d_foot_rpy(1), 2.0) / ikp.eefm_rot_damping_gain(1);
+            std::cerr << "ikp.eefm_rot_damping_gain(1) = " << ikp.eefm_rot_damping_gain(1) << std::endl;
+            if (ikp.eefm_rot_damping_gain(1) > rot_damping_gain_y_max) {
+              std::cerr << "rot_damping_gain_y_max = " << rot_damping_gain_y_max << std::endl;
+              ikp.eefm_rot_damping_gain(1) = rot_damping_gain_y_max;
+            } else if (ikp.eefm_rot_damping_gain(1) < rot_damping_gain_y_min) {
+              std::cerr << "rot_damping_gain_y_min = " << rot_damping_gain_y_min << std::endl;
+              ikp.eefm_rot_damping_gain(1) = rot_damping_gain_y_min;
+            }
+            m_debugData.data[46] = ikp.eefm_rot_damping_gain(1); // Lleg Dy
+          }
+        } // ( i == 1 ) is Lleg.
       }
       act_total_foot_origin_moment = foot_origin_rot.transpose() * act_total_foot_origin_moment;
+
+      m_debugData.data[44] = m_actContactStates.data[contact_states_index_map["rleg"]]; // Rleg act contact states
+      m_debugData.data[45] = m_actContactStates.data[contact_states_index_map["lleg"]]; // Lleg act contact states
+
+      if (segway_ride_mode) {
+        // 1. one leg support trigger
+        if ((ref_contact_states[contact_states_index_map["rleg"]] == 1) && (ref_contact_states[contact_states_index_map["lleg"]] == 0)) rleg_support_trigger = true;
+        else if ((ref_contact_states[contact_states_index_map["rleg"]] == 0) && (ref_contact_states[contact_states_index_map["lleg"]] == 1)) lleg_support_trigger = true;
+        // 2. each leg ride flag
+        if (rleg_support_trigger && (ref_contact_states[contact_states_index_map["lleg"]] == 1)) {
+          stikp[1].eefm_rot_damping_gain(0) = 22.0 * 4; // increase lleg X rot damping gain
+          if (segway_learning_mode_during_ride) {
+            damping_gain_learning_flag = true;
+          } else {
+            stikp[1].eefm_rot_damping_gain(1) = 22.0 * 4; // increase lleg Y rot damping gain
+            //stikp[1].eefm_rot_damping_gain(1) = 22.0 * 1; // failed lleg Y rot damping gain
+          }
+          rleg_support_trigger = false;
+          legs_ride_phase += 1;
+        }
+        else if (lleg_support_trigger && (ref_contact_states[contact_states_index_map["rleg"]] == 1)) {
+          stikp[0].eefm_rot_damping_gain(0) = 22.0 * 4; // increase rleg X rot damping gain
+          if (segway_learning_mode_during_ride) {
+            //stikp[0].eefm_rot_damping_gain(1) = stikp[1].eefm_rot_damping_gain(1); // set rleg Y rot damping gain as same as lleg
+            stikp[0].eefm_rot_damping_gain(1) = 22.0 * 4; // set rleg Y rot damping gain as default
+            stikp[1].eefm_rot_damping_gain(1) = 22.0 * 4; // set lleg Y rot damping gain as default
+            damping_gain_learning_flag = false;
+            segway_learning_mode_during_ride = false;
+          } else {
+            stikp[0].eefm_rot_damping_gain(1) = 22.0 * 4; // increase rleg Y rot damping gain
+            //stikp[0].eefm_rot_damping_gain(1) = 22.0 * 1; // failed rleg Y rot damping gain
+          }
+          lleg_support_trigger = false;
+          legs_ride_phase += 1;
+        }
+        // 3. after ride on segway
+        if (legs_ride_phase == 2) {
+          // (calculate-eefm-st-state-feedback-default-gain-from-robot *robot* :alpha -13.0 :beta -4.0)
+          for (int i = 0; i < 2; i++) {
+            eefm_k1[i] = -1.41607;
+            eefm_k2[i] = -0.406177;
+            eefm_k3[i] = -0.180547;
+          }
+          // Integral initialize
+          integral_av_yaw_error = 0.0;
+          integral_lv_x_error = 0.0;
+          if (segway_learning_mode_after_ride) {
+            // Learn PID gains
+            segway_learning_mode = true;
+            segway_learning_mode_lv_x = true;
+            segway_learning_mode_after_ride = false;
+          } else {
+            // Set PID gains default
+            segway_av_yaw_pgain = 0.0015;
+            segway_av_yaw_igain = 0.0015;
+            segway_av_yaw_dgain = 0.0001;
+            segway_lv_x_pgain = 0.004;
+            segway_lv_x_igain = 0.001;
+            segway_lv_x_dgain = 0.0001;
+          }
+          // Initialize
+          legs_ride_phase = 0;
+          segway_ride_mode = false;
+        }
+      }
+
+      if (segway2_ride_mode) {
+        // 1. one leg support trigger
+        if ((ref_contact_states[contact_states_index_map["rleg"]] == 1) && (ref_contact_states[contact_states_index_map["lleg"]] == 0)) rleg_support_trigger = true;
+        else if ((ref_contact_states[contact_states_index_map["rleg"]] == 0) && (ref_contact_states[contact_states_index_map["lleg"]] == 1)) lleg_support_trigger = true;
+        // 2. each leg ride flag
+        if (rleg_support_trigger && (ref_contact_states[contact_states_index_map["lleg"]] == 1)) {
+          stikp[1].eefm_rot_damping_gain(0) = 22.0 * 8; // increase lleg X rot damping gain
+          stikp[1].eefm_rot_damping_gain(1) = 22.0 * 40; // increase lleg Y rot damping gain
+          rleg_support_trigger = false;
+          legs_ride_phase += 1;
+        }
+        else if (lleg_support_trigger && (ref_contact_states[contact_states_index_map["rleg"]] == 1)) {
+          stikp[0].eefm_rot_damping_gain(0) = 22.0 * 8; // increase rleg X rot damping gain
+          stikp[0].eefm_rot_damping_gain(1) = 22.0 * 40; // increase rleg Y rot damping gain
+          lleg_support_trigger = false;
+          legs_ride_phase += 1;
+        }
+        // 3. after ride on segway
+        if (legs_ride_phase == 2) {
+          // (calculate-eefm-st-state-feedback-default-gain-from-robot *robot* :alpha -13.0 :beta -4.0)
+          for (int i = 0; i < 2; i++) {
+            eefm_k1[i] = -1.41607;
+            eefm_k2[i] = -0.406177;
+            eefm_k3[i] = -0.180547;
+          }
+          // Integral initialize
+          integral_av_yaw_error = 0.0;
+          integral_lv_x_error = 0.0;
+          // Set PID gains default
+          segway_av_yaw_pgain = 0.0015;
+          segway_av_yaw_igain = 0.0;
+          segway_av_yaw_dgain = 0.0001;
+          segway_lv_x_pgain = 0.0015;
+          segway_lv_x_igain = 0.0001;
+          segway_lv_x_dgain = 0.0001;
+          // Initialize
+          legs_ride_phase = 0;
+          segway2_ride_mode = false;
+        }
+      }
+
+      if (ninebot_start_learning_ps3joy == 1) {
+        segway_learning_mode_lv_x = true;
+        ninebot_learning_mode_lv_x = true;
+      } else if (ninebot_stop_learning_ps3joy == 1) {
+        segway_learning_mode_lv_x = false;
+        ninebot_learning_mode_lv_x = false;
+      }
+
+      if ( (ninebot_always_vd_on_flag || ninebot_vd_on_ps3joy == 1) ) {
+        segway_lv_x_target = 0.3;
+        ninebot_always_vd_on_flag = true;
+      }
+      if (ninebot_vd_off_ps3joy == 1) {
+        segway_lv_x_target = 0.0;
+        ninebot_always_vd_on_flag = false;
+      }
+
+      m_debugData.data[32] = m_rate.data.avz; // act omega
+      m_debugData.data[36] = segway_av_yaw_target; // ref omega
+      av_yaw_error = segway_av_yaw_target - m_rate.data.avz;
+      m_debugData.data[0] = av_yaw_error;
+      integral_av_yaw_error += (av_yaw_error + tmp_av_yaw_error) * dt * 0.5;
+      differential_av_yaw_error = (av_yaw_error - tmp_av_yaw_error) / dt;
+      m_debugData.data[1] = differential_av_yaw_error;
+      differential_av_yaw_error = differential_av_yaw_error_filter->passFilter(differential_av_yaw_error);
+      m_debugData.data[2] = differential_av_yaw_error;
+      differential2_av_yaw_error = (av_yaw_error - 2.0 * tmp_av_yaw_error + tmp2_av_yaw_error) / std::pow(dt, 2.0);
+      m_debugData.data[3] = differential2_av_yaw_error;
+      differential2_av_yaw_error = differential2_av_yaw_error_filter->passFilter(differential2_av_yaw_error);
+      m_debugData.data[4] = differential2_av_yaw_error;
+      differential2_av_yaw_error_LPF = (differential_av_yaw_error - tmp_differential_av_yaw_error) / dt;
+      m_debugData.data[5] = differential2_av_yaw_error_LPF;
+      differential2_av_yaw_error_LPF = differential2_av_yaw_error_LPF_filter->passFilter(differential2_av_yaw_error_LPF);
+      m_debugData.data[6] = differential2_av_yaw_error_LPF;
+
+      m_debugData.data[33] = segway_lv_x_act; // act v
+      m_debugData.data[37] = segway_lv_x_target; // ref v
+      lv_x_error = segway_lv_x_target - segway_lv_x_act;
+      integral_lv_x_error += (lv_x_error + tmp_lv_x_error) * dt * 0.5;
+      differential_lv_x_error = (lv_x_error - tmp_lv_x_error) / dt;
+      differential_lv_x_error = differential_lv_x_error_filter->passFilter(differential_lv_x_error);
+      differential2_lv_x_error = (differential_lv_x_error - tmp_differential_lv_x_error) / dt;
+      differential2_lv_x_error = differential2_lv_x_error_filter->passFilter(differential2_lv_x_error);
+
+      // Yaw Angular Velocity PID Gain Tune Learning
+      if (segway_learning_mode) {
+        coeff_scale_A = time_const_dp/std::pow(dt, 3.0) + (1.0 + model_truth_param * segway_av_yaw_dgain)/std::pow(dt, 2.0) + (model_truth_param * segway_av_yaw_pgain)/dt + model_truth_param * segway_av_yaw_igain;
+        coeff_scale_B = time_const_dp*3.0/std::pow(dt, 3.0) + (1.0 + model_truth_param * segway_av_yaw_dgain)*2.0/std::pow(dt, 2.0) + (model_truth_param * segway_av_yaw_pgain)/dt;
+        coeff_scale_C = - time_const_dp*3.0/std::pow(dt, 3.0) - (1.0 + model_truth_param * segway_av_yaw_dgain)/std::pow(dt, 2.0);
+        coeff_scale_D = time_const_dp/std::pow(dt, 3.0);
+        dy_dpid = (1.0/coeff_scale_A) * (coeff_scale_B * tmp1_dy_dpid + coeff_scale_C * tmp2_dy_dpid + coeff_scale_D * tmp3_dy_dpid + model_truth_param * hrp::Vector3(differential_av_yaw_error, av_yaw_error, differential2_av_yaw_error_LPF));
+        minus_grad_J += av_yaw_error * dy_dpid;
+        counter_eval_J += 0.5 * std::pow(av_yaw_error, 2.0);
+        tmp3_dy_dpid = tmp2_dy_dpid;
+        tmp2_dy_dpid = tmp1_dy_dpid;
+        tmp1_dy_dpid = dy_dpid;
+        SUM_learning_time += dt;
+        if (SUM_learning_time >= MAX_learning_time) {
+          eval_J = counter_eval_J;
+          segway_learning_grad_J = - minus_grad_J;
+          segway_learning_av_yaw_pid_gain = hrp::Vector3(segway_av_yaw_pgain, segway_av_yaw_igain, segway_av_yaw_dgain) - hrp::Vector3(segway_learning_rate_pid(0) * segway_learning_grad_J(0), segway_learning_rate_pid(1) * segway_learning_grad_J(1), segway_learning_rate_pid(2) * segway_learning_grad_J(2));
+          for (size_t i = 0; i < 3; i++) {
+            if (segway_learning_av_yaw_pid_gain(i) < 0) {
+              segway_learning_av_yaw_pid_gain(i) = 0.0;
+            }
+          }
+          segway_av_yaw_pgain = segway_learning_av_yaw_pid_gain(0);
+          segway_av_yaw_igain = segway_learning_av_yaw_pid_gain(1);
+          segway_av_yaw_dgain = segway_learning_av_yaw_pid_gain(2);
+          std::cerr << "segway_av_yaw_pgain = " << segway_av_yaw_pgain << std::endl;
+          std::cerr << "segway_av_yaw_igain = " << segway_av_yaw_igain << std::endl;
+          std::cerr << "segway_av_yaw_dgain = " << segway_av_yaw_dgain << std::endl;
+          if (segway_av_yaw_igain > tmp_segway_av_yaw_igain) {
+            integral_av_yaw_error = integral_av_yaw_error * (tmp_segway_av_yaw_igain / segway_av_yaw_igain);
+          }
+          tmp1_dy_dpid = hrp::Vector3::Zero();
+          tmp2_dy_dpid = hrp::Vector3::Zero();
+          tmp3_dy_dpid = hrp::Vector3::Zero();
+          minus_grad_J = hrp::Vector3::Zero();
+          counter_eval_J = 0.0;
+          SUM_learning_time = 0.0;
+          converge_checker = true;
+          //segway_learning_mode = false; // Comment Out
+        }
+      }
+
+      m_debugData.data[7] = segway_av_yaw_pgain; // P gain omega
+      m_debugData.data[8] = segway_av_yaw_igain; // I gain omega
+      m_debugData.data[9] = segway_av_yaw_dgain; // D gain omega
+      m_debugData.data[10] = segway_learning_grad_J(0); // grad_J_omega P
+      m_debugData.data[11] = segway_learning_grad_J(1); // grad_J_omega I
+      m_debugData.data[12] = segway_learning_grad_J(2); // grad_J_omega D
+      m_debugData.data[13] = eval_J; // J_omega
+
+      // X Linear Velocity PID Gain Tune Learning
+      if (segway_learning_mode_lv_x) {
+        coeff_scale_A_lvx = time_const_dp_lvx/std::pow(dt, 3.0) + (1.0 + model_truth_param_lvx * segway_lv_x_dgain)/std::pow(dt, 2.0) + (model_truth_param_lvx * segway_lv_x_pgain)/dt + model_truth_param_lvx * segway_lv_x_igain;
+        coeff_scale_B_lvx = time_const_dp_lvx*3.0/std::pow(dt, 3.0) + (1.0 + model_truth_param_lvx * segway_lv_x_dgain)*2.0/std::pow(dt, 2.0) + (model_truth_param_lvx * segway_lv_x_pgain)/dt;
+        coeff_scale_C_lvx = - time_const_dp_lvx*3.0/std::pow(dt, 3.0) - (1.0 + model_truth_param_lvx * segway_lv_x_dgain)/std::pow(dt, 2.0);
+        coeff_scale_D_lvx = time_const_dp_lvx/std::pow(dt, 3.0);
+        dy_dpid_lvx = (1.0/coeff_scale_A_lvx) * (coeff_scale_B_lvx * tmp1_dy_dpid_lvx + coeff_scale_C_lvx * tmp2_dy_dpid_lvx + coeff_scale_D_lvx * tmp3_dy_dpid_lvx + model_truth_param_lvx * hrp::Vector3(differential_lv_x_error, lv_x_error, differential2_lv_x_error));
+        minus_grad_J_lvx += lv_x_error * dy_dpid_lvx;
+        counter_eval_J_lvx += 0.5 * std::pow(lv_x_error, 2.0);
+        tmp3_dy_dpid_lvx = tmp2_dy_dpid_lvx;
+        tmp2_dy_dpid_lvx = tmp1_dy_dpid_lvx;
+        tmp1_dy_dpid_lvx = dy_dpid_lvx;
+        SUM_learning_time_lvx += dt;
+        if (SUM_learning_time_lvx >= MAX_learning_time_lvx) {
+          eval_J_lvx = counter_eval_J_lvx;
+          segway_learning_grad_J_lv_x = - minus_grad_J_lvx;
+          segway_learning_lv_x_pid_gain = hrp::Vector3(segway_lv_x_pgain, segway_lv_x_igain, segway_lv_x_dgain) - hrp::Vector3(segway_learning_rate_pid_lv_x(0) * segway_learning_grad_J_lv_x(0), segway_learning_rate_pid_lv_x(1) * segway_learning_grad_J_lv_x(1), segway_learning_rate_pid_lv_x(2) * segway_learning_grad_J_lv_x(2));
+          for (size_t i = 0; i < 3; i++) {
+            if (segway_learning_lv_x_pid_gain(i) < 0) {
+              segway_learning_lv_x_pid_gain(i) = 0.0;
+            }
+          }
+          segway_lv_x_pgain = segway_learning_lv_x_pid_gain(0);
+          segway_lv_x_igain = segway_learning_lv_x_pid_gain(1);
+          segway_lv_x_dgain = segway_learning_lv_x_pid_gain(2);
+          std::cerr << "segway_lv_x_pgain = " << segway_lv_x_pgain << std::endl;
+          std::cerr << "segway_lv_x_igain = " << segway_lv_x_igain << std::endl;
+          std::cerr << "segway_lv_x_dgain = " << segway_lv_x_dgain << std::endl;
+          if (segway_lv_x_igain > tmp_segway_lv_x_igain) {
+            integral_lv_x_error = integral_lv_x_error * (tmp_segway_lv_x_igain / segway_lv_x_igain);
+          }
+          tmp1_dy_dpid_lvx = hrp::Vector3::Zero();
+          tmp2_dy_dpid_lvx = hrp::Vector3::Zero();
+          tmp3_dy_dpid_lvx = hrp::Vector3::Zero();
+          minus_grad_J_lvx = hrp::Vector3::Zero();
+          counter_eval_J_lvx = 0.0;
+          SUM_learning_time_lvx = 0.0;
+          converge_checker = true;
+          // segway_learning_mode_lv_x = false; // Comment Out
+        }
+      }
+
+      m_debugData.data[14] = segway_lv_x_pgain; // P gain v
+      m_debugData.data[15] = segway_lv_x_igain; // I gain v
+      m_debugData.data[16] = segway_lv_x_dgain; // D gain v
+      m_debugData.data[17] = segway_learning_grad_J_lv_x(0); // grad_J_v P
+      m_debugData.data[18] = segway_learning_grad_J_lv_x(1); // grad_J_v I
+      m_debugData.data[19] = segway_learning_grad_J_lv_x(2); // grad_J_v D
+      m_debugData.data[20] = eval_J_lvx; // J_v
+
+      // X Linear Velocity PID Gain Tune Learning (Ninebot version)
+      if (ninebot_learning_mode_lv_x) {
+        coeff_scale_A_ninebot_lvx = time_const_dp_ninebot_lvx/std::pow(dt, 3.0) + (1.0 + model_truth_param_ninebot_lvx * ninebot_lv_x_dgain)/std::pow(dt, 2.0) + (model_truth_param_ninebot_lvx * ninebot_lv_x_pgain)/dt + model_truth_param_ninebot_lvx * ninebot_lv_x_igain;
+        coeff_scale_B_ninebot_lvx = time_const_dp_ninebot_lvx*3.0/std::pow(dt, 3.0) + (1.0 + model_truth_param_ninebot_lvx * ninebot_lv_x_dgain)*2.0/std::pow(dt, 2.0) + (model_truth_param_ninebot_lvx * ninebot_lv_x_pgain)/dt;
+        coeff_scale_C_ninebot_lvx = - time_const_dp_ninebot_lvx*3.0/std::pow(dt, 3.0) - (1.0 + model_truth_param_ninebot_lvx * ninebot_lv_x_dgain)/std::pow(dt, 2.0);
+        coeff_scale_D_ninebot_lvx = time_const_dp_ninebot_lvx/std::pow(dt, 3.0);
+        dy_dpid_ninebot_lvx = (1.0/coeff_scale_A_ninebot_lvx) * (coeff_scale_B_ninebot_lvx * tmp1_dy_dpid_ninebot_lvx + coeff_scale_C_ninebot_lvx * tmp2_dy_dpid_ninebot_lvx + coeff_scale_D_ninebot_lvx * tmp3_dy_dpid_ninebot_lvx + model_truth_param_ninebot_lvx * hrp::Vector3(differential_lv_x_error, lv_x_error, differential2_lv_x_error));
+        minus_grad_J_ninebot_lvx += lv_x_error * dy_dpid_ninebot_lvx;
+        counter_eval_J_ninebot_lvx += 0.5 * std::pow(lv_x_error, 2.0);
+        tmp3_dy_dpid_ninebot_lvx = tmp2_dy_dpid_ninebot_lvx;
+        tmp2_dy_dpid_ninebot_lvx = tmp1_dy_dpid_ninebot_lvx;
+        tmp1_dy_dpid_ninebot_lvx = dy_dpid_ninebot_lvx;
+        SUM_learning_time_ninebot_lvx += dt;
+        if (SUM_learning_time_ninebot_lvx >= MAX_learning_time_ninebot_lvx) {
+          eval_J_ninebot_lvx = counter_eval_J_ninebot_lvx;
+          ninebot_learning_grad_J_lv_x = - minus_grad_J_ninebot_lvx;
+          ninebot_learning_lv_x_pid_gain = hrp::Vector3(ninebot_lv_x_pgain, ninebot_lv_x_igain, ninebot_lv_x_dgain) - hrp::Vector3(ninebot_learning_rate_pid_lv_x(0) * ninebot_learning_grad_J_lv_x(0), ninebot_learning_rate_pid_lv_x(1) * ninebot_learning_grad_J_lv_x(1), ninebot_learning_rate_pid_lv_x(2) * ninebot_learning_grad_J_lv_x(2));
+          for (size_t i = 0; i < 3; i++) {
+            if (ninebot_learning_lv_x_pid_gain(i) < 0) {
+              ninebot_learning_lv_x_pid_gain(i) = 0.0;
+            }
+          }
+          ninebot_lv_x_pgain = ninebot_learning_lv_x_pid_gain(0);
+          ninebot_lv_x_igain = ninebot_learning_lv_x_pid_gain(1);
+          ninebot_lv_x_dgain = ninebot_learning_lv_x_pid_gain(2);
+          std::cerr << "ninebot_lv_x_pgain = " << ninebot_lv_x_pgain << std::endl;
+          std::cerr << "ninebot_lv_x_igain = " << ninebot_lv_x_igain << std::endl;
+          std::cerr << "ninebot_lv_x_dgain = " << ninebot_lv_x_dgain << std::endl;
+          if (ninebot_lv_x_igain > tmp_ninebot_lv_x_igain) {
+            integral_lv_x_error = integral_lv_x_error * (tmp_ninebot_lv_x_igain / ninebot_lv_x_igain);
+          }
+          tmp1_dy_dpid_ninebot_lvx = hrp::Vector3::Zero();
+          tmp2_dy_dpid_ninebot_lvx = hrp::Vector3::Zero();
+          tmp3_dy_dpid_ninebot_lvx = hrp::Vector3::Zero();
+          minus_grad_J_ninebot_lvx = hrp::Vector3::Zero();
+          counter_eval_J_ninebot_lvx = 0.0;
+          SUM_learning_time_ninebot_lvx = 0.0;
+          converge_checker = true;
+          // ninebot_learning_mode_lv_x = false; // Comment Out
+        }
+      }
+
+      m_debugData.data[49] = ninebot_lv_x_pgain; // P gain v (Ninebot version)
+      m_debugData.data[50] = ninebot_lv_x_igain; // I gain v (Ninebot version)
+      m_debugData.data[51] = ninebot_lv_x_dgain; // D gain v (Ninebot version)
+      m_debugData.data[52] = ninebot_learning_grad_J_lv_x(0); // grad_J_v P (Ninebot version)
+      m_debugData.data[53] = ninebot_learning_grad_J_lv_x(1); // grad_J_v I (Ninebot version)
+      m_debugData.data[54] = ninebot_learning_grad_J_lv_x(2); // grad_J_v D (Ninebot version)
+      m_debugData.data[55] = eval_J_ninebot_lvx; // J_v (Ninebot version)
+
+      if (converge_checker) {
+        if ( (segway_learning_mode && !segway_learning_mode_lv_x) ) {
+          if ( (segway_learning_grad_J.norm() < 10000.0 && eval_J < 0.5) ) {
+            converge_judge_count += 1;
+          } else {
+            converge_judge_count = 0;
+          }
+        } else if ( (!segway_learning_mode && segway_learning_mode_lv_x) ) {
+          std::cerr << "##########" << std::endl;
+          std::cerr << "segway_learning_grad_J_lv_x.norm()  =  " << segway_learning_grad_J_lv_x.norm() << std::endl;
+          std::cerr << "eval_J_lvx  =  " << eval_J_lvx << std::endl;
+          std::cerr << "ninebot_learning_grad_J_lv_x.norm()  =  " << ninebot_learning_grad_J_lv_x.norm() << std::endl;
+          std::cerr << "eval_J_ninebot_lvx  =  " << eval_J_ninebot_lvx << std::endl;
+          if ( (segway_learning_grad_J_lv_x.norm() < 500.0 && eval_J_lvx < 0.5 && ninebot_learning_grad_J_lv_x.norm() < 2.5 && eval_J_ninebot_lvx < 0.5) ) {
+            converge_judge_count += 1;
+          } else {
+            converge_judge_count = 0;
+          }
+        } else if ( (segway_learning_mode && segway_learning_mode_lv_x) ) {
+          if ( (segway_learning_grad_J.norm() < 10000.0 && segway_learning_grad_J_lv_x.norm() < 500.0 && eval_J < 0.5 && eval_J_lvx < 0.5) ) {
+            converge_judge_count += 1;
+          } else {
+            converge_judge_count = 0;
+          }
+        }
+        converge_checker = false;
+      }
+
+      if (converge_judge_count >= 3) {
+        segway_learning_mode = false;
+        segway_learning_mode_lv_x = false;
+        ninebot_learning_mode_lv_x = false;
+        std::cerr << "PID Gain Learning has finished !!!" << std::endl;
+        // bc.startBeep(4000, 60);
+        // bc.startBeep(2000, 60);
+        bc.startBeep(1000, 1500);
+        // bc.startBeep(500, 60);
+      } else {
+        bc.stopBeep();
+      }
+      bc.setDataPort(m_beepCommand);
+
+      if ( (!segway_learning_mode && !segway_learning_mode_lv_x && !ninebot_learning_mode_lv_x) ) {
+        converge_judge_count = 0;
+      }
+
+      m_debugData.data[34] = integral_av_yaw_error; // E_omega
+      m_debugData.data[35] = integral_lv_x_error; // E_v
+
+      differential_m_rate_data_avz = (m_rate.data.avz - tmp_m_rate_data_avz) / dt;
+      // m_debugData.data[7] = differential_m_rate_data_avz;
+      model_estimate_output = differential_m_rate_data_avz_filter->passFilter(differential_m_rate_data_avz);
+      // m_debugData.data[8] = model_estimate_output;
+      dp_input = segway_av_yaw_pgain * av_yaw_error + segway_av_yaw_igain * integral_av_yaw_error + segway_av_yaw_dgain * differential_av_yaw_error;
+      // m_debugData.data[9] = dp_input;
+      dp_input_delay = dt/(time_const_dp + dt) * dp_input + time_const_dp/(time_const_dp + dt) * dp_input_delay;
+      model_estimate_input = 10000.0 * dp_input_delay;
+      // m_debugData.data[10] = model_estimate_input;
+
+      model_estimate_param = model_estimate_param - (model_estimate_gamma * model_estimate_input)/(1 + model_estimate_gamma * std::pow(model_estimate_input, 2.0)) * (model_estimate_input * model_estimate_param - model_estimate_output);
+      // std::cerr << "model_estimate_param = " << model_estimate_param << std::endl;
+      // m_debugData.data[11] = model_estimate_param * model_estimate_input;
+
+      differential_segway_lv_x_act = (segway_lv_x_act - tmp_segway_lv_x_act) / dt;
+      lvx_model_estimate_output = differential_segway_lv_x_act_filter->passFilter(differential_segway_lv_x_act);
+      m_debugData.data[21] = lvx_model_estimate_output; // act dot_v
+      lvx_dp_input = segway_lv_x_pgain * lv_x_error + segway_lv_x_igain * integral_lv_x_error + segway_lv_x_dgain * differential_lv_x_error;
+      lvx_dp_input_delay = dt/(time_const_dp_lvx + dt) * lvx_dp_input + time_const_dp_lvx/(time_const_dp_lvx + dt) * lvx_dp_input_delay;
+      lvx_model_estimate_input = model_truth_param_lvx * lvx_dp_input_delay;
+      m_debugData.data[22] = lvx_model_estimate_input;
+
+      m_debugData.data[29] = lvx_dp_input; // u_v
+      m_debugData.data[30] = dp_input; // u_omega
+      m_debugData.data[31] = model_estimate_output; // act dot_omega
+
+      // RLEG Pitch Feedback Control
+      stikp[0].d_foot_rpy[1] = stikp[0].d_foot_rpy[1] - segway_av_yaw_pgain * av_yaw_error
+                                                      - segway_av_yaw_igain * integral_av_yaw_error
+                                                      - segway_av_yaw_dgain * differential_av_yaw_error
+                                                      + segway_lv_x_pgain * lv_x_error
+                                                      + segway_lv_x_igain * integral_lv_x_error
+                                                      + segway_lv_x_dgain * differential_lv_x_error;
+      // LLEG Pitch Feedback Control
+      stikp[1].d_foot_rpy[1] = stikp[1].d_foot_rpy[1] + segway_av_yaw_pgain * av_yaw_error
+                                                      + segway_av_yaw_igain * integral_av_yaw_error
+                                                      + segway_av_yaw_dgain * differential_av_yaw_error
+                                                      + segway_lv_x_pgain * lv_x_error
+                                                      + segway_lv_x_igain * integral_lv_x_error
+                                                      + segway_lv_x_dgain * differential_lv_x_error;
+      // RLEG Roll Feedback Control
+      //stikp[0].d_foot_rpy[0] = stikp[0].d_foot_rpy[0] - deg2rad(segway2_oneleg_roll_ps3joy);
+      //stikp[0].d_foot_rpy[0] = stikp[0].d_foot_rpy[0] - 0.4 * (0.0 - hrp::rpyFromRot(act_ee_R[0])(0)); // (20191209)
+      //stikp[0].d_foot_rpy[0] = stikp[0].d_foot_rpy[0] - 0.1 * (0.0 - hrp::rpyFromRot(act_ee_R[0])(0)); // (20191209)
+
+      // std::cerr << "stikp[0].d_foot_rpy[0]: " << stikp[0].d_foot_rpy[0] << std::endl; // Modified Roll Angle \Delta \phi_{RLEG} in Eq.(16)
+      // std::cerr << "stikp[1].d_foot_rpy[0]: " << stikp[1].d_foot_rpy[0] << std::endl; // Modified Roll Angle \Delta \phi_{LLEG} in Eq.(16)
+      // std::cerr << "stikp[0].d_foot_rpy[1]: " << stikp[0].d_foot_rpy[1] << std::endl; // Modified Pitch Angle \Delta \theta_{RLEG} in Eq.(17)
+      // std::cerr << "stikp[1].d_foot_rpy[1]: " << stikp[1].d_foot_rpy[1] << std::endl; // Modified Pitch Angle \Delta \theta_{LLEG} in Eq.(17)
 
       if (eefm_use_force_difference_control) {
           // fxyz control
@@ -1104,6 +1778,22 @@ void Stabilizer::getActualParameters ()
           stikp[0].d_foot_pos = -0.5 * pos_ctrl;
           stikp[1].d_foot_pos = 0.5 * pos_ctrl;
       }
+      // set d_foot_pos (20180712)
+      //stikp[0].d_foot_pos(2) = stikp[0].d_foot_pos(2) + ninebot_roll_ps3joy;
+      //stikp[1].d_foot_pos(2) = stikp[1].d_foot_pos(2) - ninebot_roll_ps3joy;
+      //stikp[0].d_foot_pos(2) = ninebot_roll_ps3joy;
+      //stikp[1].d_foot_pos(2) = -1 * ninebot_roll_ps3joy;
+      // print d_foot_pos (20180712)
+      //for (size_t i = 0; i < ee_name.size(); i++) {
+      //  std::cerr << "[" << m_profile.instance_name << "]   "
+      //            << "d_foot_pos (" << ee_name[i] << ")  = [" << stikp[i].d_foot_pos(0)*1e3 << " " << stikp[i].d_foot_pos(1)*1e3 << " " << stikp[i].d_foot_pos(2)*1e3 << "] [mm]" << std::endl;
+      //}
+      //ref_zmp(1) = ref_zmp(1) + ninebot_roll_ps3joy; // ref zmp y [m]
+      // print (20180714)
+      //std::cerr << "[hoge2]   "
+      //          << "[" << m_profile.instance_name << "]   "
+      //          << "ref_zmp    = " << hrp::Vector3(ref_zmp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]"))
+      //          << ", act_zmp    = " << hrp::Vector3(act_zmp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]")) << "[mm]" << std::endl;
       if (DEBUGP) {
         std::cerr << "[" << m_profile.instance_name << "] Control values" << std::endl;
         if (eefm_use_force_difference_control) {
@@ -1124,6 +1814,29 @@ void Stabilizer::getActualParameters ()
       // }
       calcDiffFootOriginExtMoment ();
     }
+
+    if ( (control_mode == MODE_IDLE || control_mode == MODE_AIR) ) {
+      integral_av_yaw_error = 0.0;
+      integral_lv_x_error = 0.0;
+      dp_input_delay = 0.0;
+      lvx_dp_input_delay = 0.0;
+      converge_judge_count = 0;
+      rleg_support_trigger = false;
+      lleg_support_trigger = false;
+      legs_ride_phase = 0;
+      damping_gain_learning_flag = false;
+    }
+
+    tmp2_av_yaw_error = tmp_av_yaw_error;
+    tmp_av_yaw_error = av_yaw_error;
+    tmp_differential_av_yaw_error = differential_av_yaw_error;
+    tmp_lv_x_error = lv_x_error;
+    tmp_differential_lv_x_error = differential_lv_x_error;
+    tmp_m_rate_data_avz = m_rate.data.avz;
+    tmp_segway_lv_x_act = segway_lv_x_act;
+    tmp_segway_av_yaw_igain = segway_av_yaw_igain;
+    tmp_segway_lv_x_igain = segway_lv_x_igain;
+    tmp_ninebot_lv_x_igain = ninebot_lv_x_igain;
   } // st_algorithm == OpenHRP::StabilizerService::EEFM
 
   for ( int i = 0; i < m_robot->numJoints(); i++ ){
@@ -1434,15 +2147,21 @@ void Stabilizer::moveBasePosRotForBodyRPYControl ()
     // Body rpy control
     //   Basically Equation (1) and (2) in the paper [1]
     hrp::Vector3 ref_root_rpy = hrp::rpyFromRot(target_root_R);
+    //hrp::Vector3 ref_root_pos = target_root_p; // define ref_root_pos (20180715 pose ver)
     bool is_root_rot_limit = false;
+    ref_root_rpy(0) = ref_root_rpy(0) + deg2rad(ninebot_roll_ps3joy); // set ref_root_rpy (20180715 posture ver)
     for (size_t i = 0; i < 2; i++) {
         d_rpy[i] = transition_smooth_gain * (eefm_body_attitude_control_gain[i] * (ref_root_rpy(i) - act_base_rpy(i)) - 1/eefm_body_attitude_control_time_const[i] * d_rpy[i]) * dt + d_rpy[i];
         d_rpy[i] = vlimit(d_rpy[i], -1 * root_rot_compensation_limit[i], root_rot_compensation_limit[i]);
         is_root_rot_limit = is_root_rot_limit || (std::fabs(std::fabs(d_rpy[i]) - root_rot_compensation_limit[i] ) < 1e-5); // near the limit
     }
+    //ref_root_pos(1) = ref_root_pos(1) + ninebot_roll_ps3joy; // set ref_root_pos (20180715 pose ver)
+    //d_pos_y = transition_smooth_gain * (1.5 * (ref_root_pos(1) - current_root_p(1)) - 1/10000.0 * d_pos_y) * dt + d_pos_y; // calc d_pos_y (20180715 pose ver)
+    //d_pos_y = vlimit(d_pos_y, -1 * root_pos_compensation_limit_y, root_pos_compensation_limit_y); // limit d_pos_y (20180715 pose ver)
     rats::rotm3times(current_root_R, target_root_R, hrp::rotFromRpy(d_rpy[0], d_rpy[1], 0));
     m_robot->rootLink()->R = current_root_R;
-    m_robot->rootLink()->p = target_root_p + target_root_R * rel_cog - current_root_R * rel_cog;
+    m_robot->rootLink()->p = target_root_p + target_root_R * rel_cog - current_root_R * rel_cog; // default (20180715 posture ver)
+    //m_robot->rootLink()->p = target_root_p + target_root_R * rel_cog - current_root_R * rel_cog + hrp::Vector3(0.0, d_pos_y, 0.0); // modify root pos (20180715 pose ver)
     m_robot->calcForwardKinematics();
     current_base_rpy = hrp::rpyFromRot(m_robot->rootLink()->R);
     current_base_pos = m_robot->rootLink()->p;
@@ -1454,6 +2173,16 @@ void Stabilizer::moveBasePosRotForBodyRPYControl ()
                   << "cur = [" << rad2deg(current_base_rpy(0)) << " " << rad2deg(current_base_rpy(1)) << "], "
                   << "limit = [" << rad2deg(root_rot_compensation_limit[0]) << " " << rad2deg(root_rot_compensation_limit[1]) << "][deg]" << std::endl;
     }
+    m_debugData.data[56] = ref_root_rpy(0); // ref roll angle
+    m_debugData.data[57] = act_base_rpy(0); // act roll angle
+    m_debugData.data[58] = ref_zmp(0); // ref zmp x
+    m_debugData.data[59] = act_zmp(0); // act zmp x
+    m_debugData.data[60] = ref_zmp(1); // ref zmp y
+    m_debugData.data[61] = act_zmp(1); // act zmp y
+    m_debugData.data[62] = ref_cp(0); // ref capture point x
+    m_debugData.data[63] = act_cp(0); // act capture point x
+    m_debugData.data[64] = ref_cp(1); // ref capture point y
+    m_debugData.data[65] = act_cp(1); // act capture point y
 };
 
 void Stabilizer::calcSwingSupportLimbGain ()
@@ -1810,6 +2539,7 @@ void Stabilizer::sync_2_st ()
   pangx_ref = pangy_ref = pangx = pangy = 0;
   rdx = rdy = rx = ry = 0;
   d_rpy[0] = d_rpy[1] = 0;
+  d_pos_y = 0;
   pdr = hrp::Vector3::Zero();
   pos_ctrl = hrp::Vector3::Zero();
   for (size_t i = 0; i < stikp.size(); i++) {
@@ -1972,6 +2702,42 @@ void Stabilizer::getParameter(OpenHRP::StabilizerService::stParam& i_stp)
       i_stp.eefm_swing_damping_force_thre[i] = eefm_swing_damping_force_thre[i];
       i_stp.eefm_swing_damping_moment_thre[i] = eefm_swing_damping_moment_thre[i];
   }
+  i_stp.segway_av_yaw_pgain = segway_av_yaw_pgain;
+  i_stp.segway_av_yaw_igain = segway_av_yaw_igain;
+  i_stp.segway_av_yaw_dgain = segway_av_yaw_dgain;
+  i_stp.segway_lv_x_pgain = segway_lv_x_pgain;
+  i_stp.segway_lv_x_igain = segway_lv_x_igain;
+  i_stp.segway_lv_x_dgain = segway_lv_x_dgain;
+  i_stp.segway_learning_mode = segway_learning_mode;
+  i_stp.segway_learning_mode_lv_x = segway_learning_mode_lv_x;
+  i_stp.segway_ride_mode = segway_ride_mode;
+  i_stp.segway2_ride_mode = segway2_ride_mode;
+  i_stp.segway_learning_mode_after_ride = segway_learning_mode_after_ride;
+  i_stp.segway_learning_mode_during_ride = segway_learning_mode_during_ride;
+  i_stp.segway_learning_rate_etaQ = segway_learning_rate_etaQ;
+  i_stp.segway_learning_rate_etaR = segway_learning_rate_etaR;
+  for (size_t i = 0; i < 3; i++) {
+    i_stp.segway_learning_grad_J[i] = segway_learning_grad_J(i);
+    i_stp.segway_learning_av_yaw_pid_gain[i] = segway_learning_av_yaw_pid_gain(i);
+    i_stp.segway_learning_rate_pid[i] = segway_learning_rate_pid(i);
+    i_stp.segway_learning_grad_J_lv_x[i] = segway_learning_grad_J_lv_x(i);
+    i_stp.segway_learning_lv_x_pid_gain[i] = segway_learning_lv_x_pid_gain(i);
+    i_stp.segway_learning_rate_pid_lv_x[i] = segway_learning_rate_pid_lv_x(i);
+    i_stp.ninebot_learning_grad_J_lv_x[i] = ninebot_learning_grad_J_lv_x(i);
+    i_stp.ninebot_learning_lv_x_pid_gain[i] = ninebot_learning_lv_x_pid_gain(i);
+    i_stp.ninebot_learning_rate_pid_lv_x[i] = ninebot_learning_rate_pid_lv_x(i);
+  }
+  i_stp.ninebot_lv_x_pgain = ninebot_lv_x_pgain;
+  i_stp.ninebot_lv_x_igain = ninebot_lv_x_igain;
+  i_stp.ninebot_lv_x_dgain = ninebot_lv_x_dgain;
+  i_stp.ninebot_test_gain = ninebot_test_gain;
+  i_stp.ninebot_learning_mode_lv_x = ninebot_learning_mode_lv_x;
+  i_stp.seesaw_balance_mode = seesaw_balance_mode;
+  i_stp.seesaw_balance_pgain = seesaw_balance_pgain;
+  i_stp.seesaw_balance_dgain = seesaw_balance_dgain;
+  i_stp.seesaw_balance_mode_zengo = seesaw_balance_mode_zengo;
+  i_stp.seesaw_balance_pgain_zengo = seesaw_balance_pgain_zengo;
+  i_stp.seesaw_balance_dgain_zengo = seesaw_balance_dgain_zengo;
   i_stp.is_ik_enable.length(is_ik_enable.size());
   for (size_t i = 0; i < is_ik_enable.size(); i++) {
       i_stp.is_ik_enable[i] = is_ik_enable[i];
@@ -2167,6 +2933,42 @@ void Stabilizer::setParameter(const OpenHRP::StabilizerService::stParam& i_stp)
       eefm_swing_damping_force_thre[i] = i_stp.eefm_swing_damping_force_thre[i];
       eefm_swing_damping_moment_thre[i] = i_stp.eefm_swing_damping_moment_thre[i];
   }
+  segway_av_yaw_pgain = i_stp.segway_av_yaw_pgain;
+  segway_av_yaw_igain = i_stp.segway_av_yaw_igain;
+  segway_av_yaw_dgain = i_stp.segway_av_yaw_dgain;
+  segway_lv_x_pgain = i_stp.segway_lv_x_pgain;
+  segway_lv_x_igain = i_stp.segway_lv_x_igain;
+  segway_lv_x_dgain = i_stp.segway_lv_x_dgain;
+  segway_learning_mode = i_stp.segway_learning_mode;
+  segway_learning_mode_lv_x = i_stp.segway_learning_mode_lv_x;
+  segway_ride_mode = i_stp.segway_ride_mode;
+  segway2_ride_mode = i_stp.segway2_ride_mode;
+  segway_learning_mode_after_ride = i_stp.segway_learning_mode_after_ride;
+  segway_learning_mode_during_ride = i_stp.segway_learning_mode_during_ride;
+  segway_learning_rate_etaQ = i_stp.segway_learning_rate_etaQ;
+  segway_learning_rate_etaR = i_stp.segway_learning_rate_etaR;
+  for (size_t i = 0; i < 3; i++) {
+    segway_learning_grad_J(i) = i_stp.segway_learning_grad_J[i];
+    segway_learning_av_yaw_pid_gain(i) = i_stp.segway_learning_av_yaw_pid_gain[i];
+    segway_learning_rate_pid(i) = i_stp.segway_learning_rate_pid[i];
+    segway_learning_grad_J_lv_x(i) = i_stp.segway_learning_grad_J_lv_x[i];
+    segway_learning_lv_x_pid_gain(i) = i_stp.segway_learning_lv_x_pid_gain[i];
+    segway_learning_rate_pid_lv_x(i) = i_stp.segway_learning_rate_pid_lv_x[i];
+    ninebot_learning_grad_J_lv_x(i) = i_stp.ninebot_learning_grad_J_lv_x[i];
+    ninebot_learning_lv_x_pid_gain(i) = i_stp.ninebot_learning_lv_x_pid_gain[i];
+    ninebot_learning_rate_pid_lv_x(i) = i_stp.ninebot_learning_rate_pid_lv_x[i];
+  }
+  ninebot_lv_x_pgain = i_stp.ninebot_lv_x_pgain;
+  ninebot_lv_x_igain = i_stp.ninebot_lv_x_igain;
+  ninebot_lv_x_dgain = i_stp.ninebot_lv_x_dgain;
+  ninebot_test_gain = i_stp.ninebot_test_gain;
+  ninebot_learning_mode_lv_x = i_stp.ninebot_learning_mode_lv_x;
+  seesaw_balance_mode = i_stp.seesaw_balance_mode;
+  seesaw_balance_pgain = i_stp.seesaw_balance_pgain;
+  seesaw_balance_dgain = i_stp.seesaw_balance_dgain;
+  seesaw_balance_mode_zengo = i_stp.seesaw_balance_mode_zengo;
+  seesaw_balance_pgain_zengo = i_stp.seesaw_balance_pgain_zengo;
+  seesaw_balance_dgain_zengo = i_stp.seesaw_balance_dgain_zengo;
   act_cogvel_filter->setCutOffFreq(i_stp.eefm_cogvel_cutoff_freq);
   szd->set_wrench_alpha_blending(i_stp.eefm_wrench_alpha_blending);
   szd->set_alpha_cutoff_freq(i_stp.eefm_alpha_cutoff_freq);
