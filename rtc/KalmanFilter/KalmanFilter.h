@@ -120,6 +120,8 @@ protected:
   TimedOrientation3D m_rpyRaw;
   TimedOrientation3D m_rpy_prev;
   TimedOrientation3D m_rpyRaw_prev;
+  //for movezmp by acc
+  TimedAcceleration3D m_accRaw_forzmp;
 
   // DataInPort declaration
   // <rtc-template block="inport_declare">
@@ -140,6 +142,9 @@ protected:
   RTC::InPort<RTC::TimedDoubleSeq> m_qCurrentIn;
   RTC::TimedOrientation3D m_baseRpyCurrent;
   RTC::OutPort<RTC::TimedOrientation3D> m_baseRpyCurrentOut;
+  //movezmp by acc
+  OutPort<TimedAcceleration3D> m_accRaw_forzmpOut;
+  
   
   // </rtc-template>
 
@@ -170,6 +175,8 @@ private:
   unsigned int m_debugLevel;
   int dummy, loop;
   OpenHRP::KalmanFilterService::KFAlgorithm kf_algorithm;
+  //for movezmp by acc
+  hrp::Matrix33 Rot_w_winit;
 };
 
 

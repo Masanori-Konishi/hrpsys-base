@@ -182,6 +182,16 @@ class Stabilizer
   RTC::TimedDoubleSeq m_qRefSeq;
   RTC::TimedBoolean m_walkingStates;
   RTC::TimedPoint3D m_sbpCogOffset;
+
+  //for move_zmp_by_acc
+  RTC::TimedAcceleration3D m_accRaw_forzmp;
+  RTC::TimedAcceleration3D m_accRaw_forzmp_forlog;
+  RTC::TimedAcceleration3D m_foot_origin_acc;
+  RTC::TimedAcceleration3D m_foot_origin_acc2;
+  RTC::TimedAcceleration3D m_foot_origin_acc_forzmp;
+  RTC::TimedAcceleration3D m_foot_origin_acc_byrpy;
+  RTC::TimedAngularVelocity3D m_act_base_rpy_vel_filtered;
+    
   // for debug ouput
   RTC::TimedPoint3D m_originRefZmp, m_originRefCog, m_originRefCogVel, m_originNewZmp;
   RTC::TimedPoint3D m_originActZmp, m_originActCog, m_originActCogVel;
@@ -194,7 +204,7 @@ class Stabilizer
   RTC::TimedDoubleSeq m_SegwaySensors;
   RTC::TimedDoubleSeq m_NinebotSensors;
   RTC::TimedLongSeq m_beepCommand;
-  
+
   // DataInPort declaration
   // <rtc-template block="inport_declare">
   RTC::InPort<RTC::TimedDoubleSeq> m_qCurrentIn;
@@ -244,7 +254,17 @@ class Stabilizer
   RTC::OutPort<RTC::TimedDoubleSeq> m_allEECompOut;
   RTC::OutPort<RTC::TimedDoubleSeq> m_debugDataOut;
   RTC::OutPort<RTC::TimedLongSeq> m_beepCommandOut;
-  
+
+  //for move_zmp_by_acc
+  RTC::InPort<RTC::TimedAcceleration3D> m_accRaw_forzmpIn;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_accRaw_forzmp_forlogOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_accOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc2Out;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_forzmpOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_byrpyOut;
+  RTC::OutPort<RTC::TimedAngularVelocity3D> m_act_base_rpy_vel_filteredOut;
+    //hrp::Vector3 foot_origin_acc, accRaw_forzmp, foot_origin_acc_forzmp;
+
   // </rtc-template>
 
   // CORBA Port declaration
@@ -368,6 +388,11 @@ class Stabilizer
   bool ninebot_learning_mode_lv_x;
   hrp::Vector3 ninebot_learning_grad_J_lv_x, ninebot_learning_lv_x_pid_gain, ninebot_learning_rate_pid_lv_x;
   BeepClient bc;
+    //for move_zmp_by_acc
+    hrp::Vector3 foot_origin_pos_buf1, foot_origin_pos_buf2, foot_origin_pos_buf3;
+    hrp::Vector3 foot_origin_acc,foot_origin_acc2, accRaw_forzmp, foot_origin_acc_forzmp, accRaw_forzmp_forlog, foot_origin_acc_byrpy;
+    hrp::Vector3 act_base_rpy_buf, act_base_rpy_vel, act_base_rpy_vel_filtered, act_base_rpy_vel_filtered_buf;
+    boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > act_base_rpy_vel_filter;
 };
 
 

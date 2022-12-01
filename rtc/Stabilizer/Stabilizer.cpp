@@ -103,6 +103,14 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_allEECompOut("allEEComp", m_allEEComp),
     m_debugDataOut("debugData", m_debugData),
     m_beepCommandOut("beepCommand", m_beepCommand),
+    //for move_zmp_by_acc
+    m_accRaw_forzmpIn("accRaw_forzmpIn", m_accRaw_forzmp),
+    m_foot_origin_accOut("foot_origin_accOut", m_foot_origin_acc),
+    m_foot_origin_acc2Out("foot_origin_acc2Out", m_foot_origin_acc2),
+    m_foot_origin_acc_forzmpOut("foot_origin_acc_forzmpOut", m_foot_origin_acc_forzmp),
+    m_foot_origin_acc_byrpyOut("foot_origin_acc_byrpyOut", m_foot_origin_acc_byrpy),
+    m_accRaw_forzmp_forlogOut("accRaw_forzmp_forlogOut", m_accRaw_forzmp_forlog),
+    m_act_base_rpy_vel_filteredOut("act_base_rpy_vel_filteredOut", m_act_base_rpy_vel_filtered),
     control_mode(MODE_IDLE),
     st_algorithm(OpenHRP::StabilizerService::TPCC),
     emergency_check_mode(OpenHRP::StabilizerService::NO_CHECK),
@@ -172,6 +180,13 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("allEEComp", m_allEECompOut);
   addOutPort("debugData", m_debugDataOut);
   addOutPort("beepCommand", m_beepCommandOut);
+  //move_zmp_by_acc
+  addInPort("accRaw_forzmpIn", m_accRaw_forzmpIn);
+  addOutPort("accRaw_forzmp_forlogOut", m_accRaw_forzmp_forlogOut);
+  addOutPort("foot_origin_acc", m_foot_origin_accOut);
+  addOutPort("foot_origin_acc2", m_foot_origin_acc2Out);
+  addOutPort("foot_origin_acc_byrpy", m_foot_origin_acc_byrpyOut);
+  addOutPort("act_base_rpy_vel_filtered", m_act_base_rpy_vel_filteredOut);
   
   // Set service provider to Ports
   m_StabilizerServicePort.registerProvider("service0", "StabilizerService", m_service0);
@@ -548,6 +563,9 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   foot_roll_tilt_angvel_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
   foot_pitch_tilt_angvel_filter = boost::shared_ptr<FirstOrderLowPassFilter<double> >(new FirstOrderLowPassFilter<double>(4.0, dt, 0.0)); // [Hz]
 
+  //for movezmp by acc
+  act_base_rpy_vel_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+
   // for debug output
   m_originRefZmp.data.x = m_originRefZmp.data.y = m_originRefZmp.data.z = 0.0;
   m_originRefCog.data.x = m_originRefCog.data.y = m_originRefCog.data.z = 0.0;
@@ -714,6 +732,14 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
   }
   if (m_accIn.isNew()) {
     m_accIn.read();
+  }
+  //for move_zmp_by_acc
+  if (m_accRaw_forzmpIn.isNew()) {
+    m_accRaw_forzmpIn.read();
+    accRaw_forzmp(0) = m_accRaw_forzmp.data.ax;
+    accRaw_forzmp(1) = m_accRaw_forzmp.data.ay;
+    accRaw_forzmp(2) = m_accRaw_forzmp.data.az;
+    //std::cerr << "[debug] accRaw_forzmp ax= " << accRaw_forzmp(0) << " ay= " <<accRaw_forzmp(1) << " az= " <<accRaw_forzmp(2)<< std::endl;
   }
   if (m_rpyIn.isNew()) {
     m_rpyIn.read();
@@ -901,6 +927,44 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_currentBasePos.data.z = current_base_pos(2);
       m_currentBasePos.tm = m_qRef.tm;
       m_actBaseRpyOut.write();
+
+      //for move_zmp_by_acc
+      m_foot_origin_acc_forzmp.data.ax = foot_origin_acc_forzmp(0);
+      m_foot_origin_acc_forzmp.data.ay = foot_origin_acc_forzmp(1);
+      m_foot_origin_acc_forzmp.data.az = foot_origin_acc_forzmp(2);
+      m_foot_origin_acc_forzmp.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmpOut.write();
+
+      m_foot_origin_acc.data.ax = foot_origin_acc(0);
+      m_foot_origin_acc.data.ay = foot_origin_acc(1);
+      m_foot_origin_acc.data.az = foot_origin_acc(2);
+      m_foot_origin_acc.tm = m_qRef.tm;
+      m_foot_origin_accOut.write();
+
+      m_foot_origin_acc2.data.ax = foot_origin_acc2(0);
+      m_foot_origin_acc2.data.ay = foot_origin_acc2(1);
+      m_foot_origin_acc2.data.az = foot_origin_acc2(2);
+      m_foot_origin_acc2.tm = m_qRef.tm;
+      m_foot_origin_acc2Out.write();
+
+      m_accRaw_forzmp_forlog.data.ax = accRaw_forzmp_forlog(0);
+      m_accRaw_forzmp_forlog.data.ay = accRaw_forzmp_forlog(1);
+      m_accRaw_forzmp_forlog.data.az = accRaw_forzmp_forlog(2);
+      m_accRaw_forzmp_forlog.tm = m_qRef.tm;
+      m_accRaw_forzmp_forlogOut.write();
+
+      m_foot_origin_acc_byrpy.data.ax = foot_origin_acc_byrpy(0);
+      m_foot_origin_acc_byrpy.data.ay = foot_origin_acc_byrpy(1);
+      m_foot_origin_acc_byrpy.data.az = foot_origin_acc_byrpy(2);
+      m_foot_origin_acc_byrpy.tm = m_qRef.tm;
+      m_foot_origin_acc_byrpyOut.write();
+
+      m_act_base_rpy_vel_filtered.data.avx = act_base_rpy_vel_filtered(0);
+      m_act_base_rpy_vel_filtered.data.avy = act_base_rpy_vel_filtered(1);
+      m_act_base_rpy_vel_filtered.data.avz = act_base_rpy_vel_filtered(2);
+      m_act_base_rpy_vel_filtered.tm = m_qRef.tm;
+      m_act_base_rpy_vel_filteredOut.write();
+
       m_currentBaseRpyOut.write();
       m_currentBasePosOut.write();
       m_debugData.tm = m_qRef.tm;
@@ -982,8 +1046,28 @@ void Stabilizer::getActualParameters ()
     //hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r*0.5, m_rpy.data.p*0.5, m_rpy.data.y*0.5));
     m_robot->rootLink()->R = act_Rs * (senR.transpose() * m_robot->rootLink()->R);
     m_robot->calcForwardKinematics();
+    act_base_rpy_buf = act_base_rpy;//for movezmp by acc
     act_base_rpy = hrp::rpyFromRot(m_robot->rootLink()->R);
     calcFootOriginCoords (foot_origin_pos, foot_origin_rot);
+    
+    //for move_zmp_by_acc
+    foot_origin_pos_buf3 = foot_origin_pos_buf2;
+    foot_origin_pos_buf2 = foot_origin_pos_buf1;
+    foot_origin_pos_buf1 = foot_origin_pos;
+    foot_origin_acc = (foot_origin_pos_buf1-2*foot_origin_pos_buf2+foot_origin_pos_buf3)/(dt*dt);
+    accRaw_forzmp = act_Rs * accRaw_forzmp;
+    accRaw_forzmp_forlog = accRaw_forzmp;
+    foot_origin_acc_forzmp = accRaw_forzmp + foot_origin_acc;
+
+    act_base_rpy_vel = (act_base_rpy - act_base_rpy_buf)/dt;
+    act_base_rpy_vel_filtered_buf = act_base_rpy_vel_filtered;
+    act_base_rpy_vel_filtered = act_base_rpy_vel_filter->passFilter(act_base_rpy_vel);
+    act_base_rpy_acc = (act_base_rpy_filtered - act_base_rpy_filtered)/dt;
+    foot_origin_acc_byrpy = act_base_rpy_acc.cross(foot_origin_pos);
+    foot_origin_acc_forzmp2 = accRaw_forzmp + foot_origin_acc_byrpy;
+    
+    //for move_zmp_by_acc debug print
+    std::cerr << std::fixed << std::setprecision(5) << "(" << accRaw_forzmp(0) << ", " <<accRaw_forzmp(1) << ", " <<accRaw_forzmp(2)<< ") + (" << foot_origin_acc(0) << ", " <<foot_origin_acc(1) << ", " <<foot_origin_acc(2)<< ") = (" << foot_origin_acc_forzmp(0) << ", " <<foot_origin_acc_forzmp(1) << ", " <<foot_origin_acc_forzmp(2)<<")" << std::endl;
   } else {
     for ( int i = 0; i < m_robot->numJoints(); i++ ) {
       m_robot->joint(i)->q = qorg[i];

@@ -411,6 +411,8 @@ class HrpsysConfigurator(object):
                 connectPorts(self.rfu.port("refFootOriginExtMomentIsHoldValue"), self.abc.port("refFootOriginExtMomentIsHoldValue"))
             if self.octd:
                 connectPorts(self.abc.port("contactStates"), self.octd.port("contactStates"))
+            #for movezmp by acc
+            connectPorts(self.kf.port("accRaw_forzmpOut"), self.st.port("accRaw_forzmpIn"))
 
         # ref force moment connection
         for sen in self.getForceSensorNames():
@@ -878,6 +880,8 @@ class HrpsysConfigurator(object):
         #
         if self.kf != None:
             self.connectLoggerPort(self.kf, 'rpy')
+            #for movezmp by Acc
+            #self.connectLoggerPort(self.kf, 'accRaw_forzmpOut')
         if self.sh != None:
             self.connectLoggerPort(self.sh, 'qOut')
             self.connectLoggerPort(self.sh, 'tqOut')
@@ -909,6 +913,13 @@ class HrpsysConfigurator(object):
             self.connectLoggerPort(self.st, 'currentBasePos')
             self.connectLoggerPort(self.st, 'currentBaseRpy')
             self.connectLoggerPort(self.st, 'debugData')
+            #for movezmp by acc
+            self.connectLoggerPort(self.st, 'foot_origin_accOut')
+            self.connectLoggerPort(self.st, 'foot_origin_accOut2')
+            self.connectLoggerPort(self.st, 'foot_origin_acc_forzmpOut')
+            self.connectLoggerPort(self.st, 'foot_origin_acc_byrpyOut')
+            self.connectLoggerPort(self.st, 'accRaw_forzmp_forlogOut')
+            self.connectLoggerPort(self.st, 'act_base_rpy_vel_filteredOut')
         if self.el != None:
             self.connectLoggerPort(self.el, 'q')
         if self.rh != None:

@@ -51,6 +51,7 @@ KalmanFilter::KalmanFilter(RTC::Manager* manager)
     m_rpyRawOut("rpy_raw", m_rpyRaw),
     m_baseRpyCurrentOut("baseRpyCurrent", m_baseRpyCurrent),
     m_KalmanFilterServicePort("KalmanFilterService"),
+    m_accRaw_forzmpOut("accRaw_forzmpOut", m_accRaw_forzmp),
     // </rtc-template>
     m_robot(hrp::BodyPtr()),
     m_debugLevel(0),
@@ -90,6 +91,8 @@ RTC::ReturnCode_t KalmanFilter::onInitialize()
   addOutPort("rpy", m_rpyOut);
   addOutPort("rpy_raw", m_rpyRawOut);
   addOutPort("baseRpyCurrent", m_baseRpyCurrentOut);
+  //for movezmp by acc
+  addOutPort("accRaw_forzmpOut", m_accRaw_forzmpOut);
 
   // Set service provider to Ports
   m_KalmanFilterServicePort.registerProvider("service0", "KalmanFilterService", m_service0);
@@ -251,6 +254,15 @@ RTC::ReturnCode_t KalmanFilter::onExecute(RTC::UniqueId ec_id)
     m_acc.data.ax = acc(0);
     m_acc.data.ay = acc(1);
     m_acc.data.az = acc(2);
+    //for movezmp by acc
+    Rot_w_winit = hrp::rotFromRpy(rpy);
+    Eigen::Vector3d accRaw_forzmp = hrp::Vector3(m_accRaw.data.ax+acc_offset(0), m_accRaw.data.ay+acc_offset(1), m_accRaw.data.az+acc_offset(2));
+    accRaw_forzmp = sensorR_offset * accRaw_forzmp;
+    m_accRaw_forzmp.data.ax = accRaw_forzmp(0);
+    m_accRaw_forzmp.data.ay = accRaw_forzmp(1);
+    m_accRaw_forzmp.data.az = accRaw_forzmp(2);
+    //std::cerr << "[debug] accRaw_forzmp ax= " << accRaw_forzmp(0) << " ay= " <<accRaw_forzmp(1) << " az= " <<accRaw_forzmp(2)<< std::endl;
+    m_accRaw_forzmp.tm = m_accRaw.tm;
     // add time stamp
     m_rateO.tm = m_rate.tm;
     m_acc.tm = m_accRaw.tm;
@@ -263,6 +275,7 @@ RTC::ReturnCode_t KalmanFilter::onExecute(RTC::UniqueId ec_id)
     m_rpyOut.write();
     m_rpyRawOut.write();
     m_baseRpyCurrentOut.write();
+    m_accRaw_forzmpOut.write();
   }
   return RTC::RTC_OK;
 }
