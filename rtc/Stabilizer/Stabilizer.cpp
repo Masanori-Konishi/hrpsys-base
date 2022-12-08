@@ -1345,27 +1345,34 @@ void Stabilizer::getActualParameters ()
         if ((ref_contact_states[contact_states_index_map["rleg"]] == 1) && (ref_contact_states[contact_states_index_map["lleg"]] == 0)) rleg_support_trigger = true;
         else if ((ref_contact_states[contact_states_index_map["rleg"]] == 0) && (ref_contact_states[contact_states_index_map["lleg"]] == 1)) lleg_support_trigger = true;
         // 2. each leg ride flag
+        const int ground_to_segway_gain_rate = 1;
         if (rleg_support_trigger && (ref_contact_states[contact_states_index_map["lleg"]] == 1)) {
-          stikp[1].eefm_rot_damping_gain(0) = 22.0 * 4; // increase lleg X rot damping gain
+          // stikp[1].eefm_rot_damping_gain(0) = 22.0 * 4; // increase lleg X rot damping gain (hrp2)
+          stikp[1].eefm_rot_damping_gain(0) = 115 * ground_to_segway_gain_rate; // increase lleg X rot damping gain
           if (segway_learning_mode_during_ride) {
             damping_gain_learning_flag = true;
           } else {
-            stikp[1].eefm_rot_damping_gain(1) = 22.0 * 4; // increase lleg Y rot damping gain
+            // stikp[1].eefm_rot_damping_gain(1) = 22.0 * 4; // increase lleg Y rot damping gain (hrp2)
+            stikp[1].eefm_rot_damping_gain(1) = 115 * ground_to_segway_gain_rate; // increase lleg Y rot damping gain
             //stikp[1].eefm_rot_damping_gain(1) = 22.0 * 1; // failed lleg Y rot damping gain
           }
           rleg_support_trigger = false;
           legs_ride_phase += 1;
         }
         else if (lleg_support_trigger && (ref_contact_states[contact_states_index_map["rleg"]] == 1)) {
-          stikp[0].eefm_rot_damping_gain(0) = 22.0 * 4; // increase rleg X rot damping gain
+          // stikp[0].eefm_rot_damping_gain(0) = 22.0 * 4; // increase rleg X rot damping gain (hrp2)
+          stikp[0].eefm_rot_damping_gain(0) = 115 * ground_to_segway_gain_rate; // increase rleg X rot damping gain
           if (segway_learning_mode_during_ride) {
             //stikp[0].eefm_rot_damping_gain(1) = stikp[1].eefm_rot_damping_gain(1); // set rleg Y rot damping gain as same as lleg
-            stikp[0].eefm_rot_damping_gain(1) = 22.0 * 4; // set rleg Y rot damping gain as default
-            stikp[1].eefm_rot_damping_gain(1) = 22.0 * 4; // set lleg Y rot damping gain as default
+            // stikp[0].eefm_rot_damping_gain(1) = 22.0 * 4; // set rleg Y rot damping gain as default (hrp2)
+            // stikp[1].eefm_rot_damping_gain(1) = 22.0 * 4; // set lleg Y rot damping gain as default (hrp2)
+            stikp[0].eefm_rot_damping_gain(1) = 115 * ground_to_segway_gain_rate; // set rleg Y rot damping gain as default
+            stikp[1].eefm_rot_damping_gain(1) = 115 * ground_to_segway_gain_rate; // set lleg Y rot damping gain as default
             damping_gain_learning_flag = false;
             segway_learning_mode_during_ride = false;
           } else {
-            stikp[0].eefm_rot_damping_gain(1) = 22.0 * 4; // increase rleg Y rot damping gain
+            // stikp[0].eefm_rot_damping_gain(1) = 22.0 * 4; // increase rleg Y rot damping gain (hrp2)
+            stikp[0].eefm_rot_damping_gain(1) = 115 * ground_to_segway_gain_rate; // increase rleg Y rot damping gain
             //stikp[0].eefm_rot_damping_gain(1) = 22.0 * 1; // failed rleg Y rot damping gain
           }
           lleg_support_trigger = false;
@@ -1374,11 +1381,11 @@ void Stabilizer::getActualParameters ()
         // 3. after ride on segway
         if (legs_ride_phase == 2) {
           // (calculate-eefm-st-state-feedback-default-gain-from-robot *robot* :alpha -13.0 :beta -4.0)
-          for (int i = 0; i < 2; i++) {
-            eefm_k1[i] = -1.41607;
-            eefm_k2[i] = -0.406177;
-            eefm_k3[i] = -0.180547;
-          }
+          // for (int i = 0; i < 2; i++) {
+          //   eefm_k1[i] = -1.41607; // parameters of hrp2 on segway
+          //   eefm_k2[i] = -0.406177;
+          //   eefm_k3[i] = -0.180547;
+          // }
           // Integral initialize
           integral_av_yaw_error = 0.0;
           integral_lv_x_error = 0.0;
@@ -1389,9 +1396,12 @@ void Stabilizer::getActualParameters ()
             segway_learning_mode_after_ride = false;
           } else {
             // Set PID gains default
-            segway_av_yaw_pgain = 0.0015;
-            segway_av_yaw_igain = 0.0015;
-            segway_av_yaw_dgain = 0.0001;
+            segway_av_yaw_pgain = 0.00045;
+            segway_av_yaw_igain = 0.00045;
+            segway_av_yaw_dgain = 0.00003;
+            // segway_av_yaw_pgain = 0.0015;
+            // segway_av_yaw_igain = 0.0015;
+            // segway_av_yaw_dgain = 0.0001;
             segway_lv_x_pgain = 0.004;
             segway_lv_x_igain = 0.001;
             segway_lv_x_dgain = 0.0001;
