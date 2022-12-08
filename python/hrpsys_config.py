@@ -413,6 +413,7 @@ class HrpsysConfigurator(object):
                 connectPorts(self.abc.port("contactStates"), self.octd.port("contactStates"))
             #for movezmp by acc
             connectPorts(self.kf.port("accRaw_forzmpOut"), self.st.port("accRaw_forzmpIn"))
+            connectPorts(self.kf.port("accRef_forzmpOut"), self.st.port("accRef_forzmpIn"))
 
         # ref force moment connection
         for sen in self.getForceSensorNames():
@@ -915,11 +916,27 @@ class HrpsysConfigurator(object):
             self.connectLoggerPort(self.st, 'debugData')
             #for movezmp by acc
             self.connectLoggerPort(self.st, 'foot_origin_accOut')
-            self.connectLoggerPort(self.st, 'foot_origin_accOut2')
+            self.connectLoggerPort(self.st, 'foot_origin_acc2Out')
+            self.connectLoggerPort(self.st, 'acc_r2s_oOut')
             self.connectLoggerPort(self.st, 'foot_origin_acc_forzmpOut')
+            self.connectLoggerPort(self.st, 'foot_origin_acc_forzmp2Out')
+            self.connectLoggerPort(self.st, 'foot_origin_acc_forzmp3Out')
+            self.connectLoggerPort(self.st, 'foot_origin_acc_forzmp4Out')
+            self.connectLoggerPort(self.st, 'foot_origin_acc_forzmp5Out')
             self.connectLoggerPort(self.st, 'foot_origin_acc_byrpyOut')
             self.connectLoggerPort(self.st, 'accRaw_forzmp_forlogOut')
+            self.connectLoggerPort(self.st, 'accRaw_forzmp2_forlogOut')
+            self.connectLoggerPort(self.st, 'accRef_forzmp_forlogOut')
             self.connectLoggerPort(self.st, 'act_base_rpy_vel_filteredOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realrpy_forlogOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realrpyvel_forlogOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realrpyacc_forlogOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realpos_forlogOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realpos_filteredOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realvel_forlogOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realvel_filteredOut')
+            self.connectLoggerPort(self.st, 'choreonoid_realacc_forlogOut')
+        #self.log_svc.add("TimedOrientation3D", "choreonoid_realrpy_forlogOut")
         if self.el != None:
             self.connectLoggerPort(self.el, 'q')
         if self.rh != None:

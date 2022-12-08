@@ -103,14 +103,39 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_allEECompOut("allEEComp", m_allEEComp),
     m_debugDataOut("debugData", m_debugData),
     m_beepCommandOut("beepCommand", m_beepCommand),
-    //for move_zmp_by_acc
+    //for movezmp_by_acc
+    m_accRef_forzmpIn("accRef_forzmpIn", m_accRef_forzmp),
     m_accRaw_forzmpIn("accRaw_forzmpIn", m_accRaw_forzmp),
+    m_acc_r2s_oOut("acc_r2s_oOut", m_acc_r2s_o),
     m_foot_origin_accOut("foot_origin_accOut", m_foot_origin_acc),
     m_foot_origin_acc2Out("foot_origin_acc2Out", m_foot_origin_acc2),
     m_foot_origin_acc_forzmpOut("foot_origin_acc_forzmpOut", m_foot_origin_acc_forzmp),
+    m_foot_origin_acc_forzmp2Out("foot_origin_acc_forzmp2Out", m_foot_origin_acc_forzmp2),
+    m_foot_origin_acc_forzmp3Out("foot_origin_acc_forzmp3Out", m_foot_origin_acc_forzmp3),
+    m_foot_origin_acc_forzmp4Out("foot_origin_acc_forzmp4Out", m_foot_origin_acc_forzmp4),
+    m_foot_origin_acc_forzmp5Out("foot_origin_acc_forzmp5Out", m_foot_origin_acc_forzmp5),
     m_foot_origin_acc_byrpyOut("foot_origin_acc_byrpyOut", m_foot_origin_acc_byrpy),
     m_accRaw_forzmp_forlogOut("accRaw_forzmp_forlogOut", m_accRaw_forzmp_forlog),
+    m_accRaw_forzmp2_forlogOut("accRaw_forzmp2_forlogOut", m_accRaw_forzmp2_forlog),
+    m_accRef_forzmp_forlogOut("accRef_forzmp_forlogOut", m_accRef_forzmp_forlog),
     m_act_base_rpy_vel_filteredOut("act_base_rpy_vel_filteredOut", m_act_base_rpy_vel_filtered),
+    //for logging real values in choreonoid
+    m_choreonoid_realrpy_forlogIn("choreonoid_realrpy_forlogIn", m_choreonoid_realrpy_forlog),
+    m_choreonoid_realrpy_forlogOut("choreonoid_realrpy_forlogOut", m_choreonoid_realrpy_forlog),
+    m_choreonoid_realrpyvel_forlogIn("choreonoid_realrpyvel_forlogIn", m_choreonoid_realrpyvel_forlog),
+    m_choreonoid_realrpyvel_forlogOut("choreonoid_realrpyvel_forlogOut", m_choreonoid_realrpyvel_forlog),
+    m_choreonoid_realrpyacc_forlogIn("choreonoid_realrpyacc_forlogIn", m_choreonoid_realrpyacc_forlog),
+    m_choreonoid_realrpyacc_forlogOut("choreonoid_realrpyacc_forlogOut", m_choreonoid_realrpyacc_forlog),
+    m_choreonoid_realpos_forlogIn("choreonoid_realpos_forlogIn", m_choreonoid_realpos_forlog),
+    m_choreonoid_realpos_forlogOut("choreonoid_realpos_forlogOut", m_choreonoid_realpos_forlog),
+    m_choreonoid_realpos_filteredIn("choreonoid_realpos_filteredIn", m_choreonoid_realpos_filtered),
+    m_choreonoid_realpos_filteredOut("choreonoid_realpos_filteredOut", m_choreonoid_realpos_filtered),
+    m_choreonoid_realvel_forlogIn("choreonoid_realvel_forlogIn", m_choreonoid_realvel_forlog),
+    m_choreonoid_realvel_forlogOut("choreonoid_realvel_forlogOut", m_choreonoid_realvel_forlog),
+    m_choreonoid_realvel_filteredIn("choreonoid_realvel_filteredIn", m_choreonoid_realvel_filtered),
+    m_choreonoid_realvel_filteredOut("choreonoid_realvel_filteredOut", m_choreonoid_realvel_filtered),
+    m_choreonoid_realacc_forlogIn("choreonoid_realacc_forlogIn", m_choreonoid_realacc_forlog),
+    m_choreonoid_realacc_forlogOut("choreonoid_realacc_forlogOut", m_choreonoid_realacc_forlog),
     control_mode(MODE_IDLE),
     st_algorithm(OpenHRP::StabilizerService::TPCC),
     emergency_check_mode(OpenHRP::StabilizerService::NO_CHECK),
@@ -180,13 +205,42 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("allEEComp", m_allEECompOut);
   addOutPort("debugData", m_debugDataOut);
   addOutPort("beepCommand", m_beepCommandOut);
-  //move_zmp_by_acc
+  //movezmp_by_acc
+  addInPort("accRef_forzmpIn", m_accRef_forzmpIn);
   addInPort("accRaw_forzmpIn", m_accRaw_forzmpIn);
+  addOutPort("m_acc_r2s_oOut", m_acc_r2s_oOut);
+  addOutPort("accRef_forzmp_forlogOut", m_accRef_forzmp_forlogOut);
   addOutPort("accRaw_forzmp_forlogOut", m_accRaw_forzmp_forlogOut);
+  addOutPort("accRaw_forzmp2_forlogOut", m_accRaw_forzmp2_forlogOut);
   addOutPort("foot_origin_acc", m_foot_origin_accOut);
   addOutPort("foot_origin_acc2", m_foot_origin_acc2Out);
+  addOutPort("foot_origin_acc_forzmp", m_foot_origin_acc_forzmpOut);
+  addOutPort("foot_origin_acc_forzmp2", m_foot_origin_acc_forzmp2Out);
+  addOutPort("foot_origin_acc_forzmp3", m_foot_origin_acc_forzmp3Out);
+  addOutPort("foot_origin_acc_forzmp4", m_foot_origin_acc_forzmp4Out);
+  addOutPort("foot_origin_acc_forzmp5", m_foot_origin_acc_forzmp5Out);
   addOutPort("foot_origin_acc_byrpy", m_foot_origin_acc_byrpyOut);
   addOutPort("act_base_rpy_vel_filtered", m_act_base_rpy_vel_filteredOut);
+  //for logging real values in choreonoid
+  addInPort("choreonoid_realrpy_forlogIn", m_choreonoid_realrpy_forlogIn),
+  addOutPort("choreonoid_realrpy_forlogOut", m_choreonoid_realrpy_forlogOut);
+  addInPort("choreonoid_realrpy_forlogIn",m_choreonoid_realrpy_forlogIn);
+  addOutPort("choreonoid_realrpy_forlogOut",m_choreonoid_realrpy_forlogOut);
+  addInPort("choreonoid_realrpyvel_forlogIn",m_choreonoid_realrpyvel_forlogIn);
+  addOutPort("choreonoid_realrpyvel_forlogOut",m_choreonoid_realrpyvel_forlogOut);
+  addInPort("choreonoid_realrpyacc_forlogIn",m_choreonoid_realrpyacc_forlogIn);
+  addOutPort("choreonoid_realrpyacc_forlogOut",m_choreonoid_realrpyacc_forlogOut);
+  addInPort("choreonoid_realpos_forlogIn",m_choreonoid_realpos_forlogIn);
+  addOutPort("choreonoid_realpos_forlogOut",m_choreonoid_realpos_forlogOut);
+  addInPort("choreonoid_realvel_forlogIn",m_choreonoid_realvel_forlogIn);
+  addOutPort("choreonoid_realvel_forlogOut",m_choreonoid_realvel_forlogOut);
+  addInPort("choreonoid_realacc_forlogIn",m_choreonoid_realacc_forlogIn);
+  addOutPort("choreonoid_realacc_forlogOut",m_choreonoid_realacc_forlogOut);
+
+  addInPort("choreonoid_realpos_filteredIn",m_choreonoid_realpos_filteredIn);
+  addOutPort("choreonoid_realpos_filteredOut",m_choreonoid_realpos_filteredOut);
+  addInPort("choreonoid_realvel_filteredIn",m_choreonoid_realvel_filteredIn);
+  addOutPort("choreonoid_realvel_filteredOut",m_choreonoid_realvel_filteredOut);
   
   // Set service provider to Ports
   m_StabilizerServicePort.registerProvider("service0", "StabilizerService", m_service0);
@@ -733,14 +787,29 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
   if (m_accIn.isNew()) {
     m_accIn.read();
   }
-  //for move_zmp_by_acc
+  //for movezmp_by_acc
   if (m_accRaw_forzmpIn.isNew()) {
     m_accRaw_forzmpIn.read();
     accRaw_forzmp(0) = m_accRaw_forzmp.data.ax;
     accRaw_forzmp(1) = m_accRaw_forzmp.data.ay;
     accRaw_forzmp(2) = m_accRaw_forzmp.data.az;
-    //std::cerr << "[debug] accRaw_forzmp ax= " << accRaw_forzmp(0) << " ay= " <<accRaw_forzmp(1) << " az= " <<accRaw_forzmp(2)<< std::endl;
   }
+  if (m_accRef_forzmpIn.isNew()) {
+    m_accRef_forzmpIn.read();
+    accRef_forzmp(0) = m_accRef_forzmp.data.ax;
+    accRef_forzmp(1) = m_accRef_forzmp.data.ay;
+    accRef_forzmp(2) = m_accRef_forzmp.data.az;
+  }
+  //for logging real values in choreonoid
+  if (m_choreonoid_realrpy_forlogIn.isNew()) { m_choreonoid_realrpy_forlogIn.read(); }
+  if (m_choreonoid_realrpyvel_forlogIn.isNew()) { m_choreonoid_realrpyvel_forlogIn.read(); }
+  if (m_choreonoid_realrpyacc_forlogIn.isNew()) { m_choreonoid_realrpyacc_forlogIn.read(); }
+  if (m_choreonoid_realpos_filteredIn.isNew()) { m_choreonoid_realpos_filteredIn.read(); }
+  if (m_choreonoid_realvel_filteredIn.isNew()) { m_choreonoid_realvel_filteredIn.read(); }
+  if (m_choreonoid_realpos_forlogIn.isNew()) { m_choreonoid_realpos_forlogIn.read(); }
+  if (m_choreonoid_realvel_forlogIn.isNew()) { m_choreonoid_realvel_forlogIn.read(); }
+  if (m_choreonoid_realacc_forlogIn.isNew()) { m_choreonoid_realacc_forlogIn.read(); }
+  
   if (m_rpyIn.isNew()) {
     m_rpyIn.read();
   }
@@ -928,13 +997,7 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_currentBasePos.tm = m_qRef.tm;
       m_actBaseRpyOut.write();
 
-      //for move_zmp_by_acc
-      m_foot_origin_acc_forzmp.data.ax = foot_origin_acc_forzmp(0);
-      m_foot_origin_acc_forzmp.data.ay = foot_origin_acc_forzmp(1);
-      m_foot_origin_acc_forzmp.data.az = foot_origin_acc_forzmp(2);
-      m_foot_origin_acc_forzmp.tm = m_qRef.tm;
-      m_foot_origin_acc_forzmpOut.write();
-
+      //for movezmp_by_acc
       m_foot_origin_acc.data.ax = foot_origin_acc(0);
       m_foot_origin_acc.data.ay = foot_origin_acc(1);
       m_foot_origin_acc.data.az = foot_origin_acc(2);
@@ -947,11 +1010,59 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_foot_origin_acc2.tm = m_qRef.tm;
       m_foot_origin_acc2Out.write();
 
+      m_foot_origin_acc_forzmp.data.ax = foot_origin_acc_forzmp(0);
+      m_foot_origin_acc_forzmp.data.ay = foot_origin_acc_forzmp(1);
+      m_foot_origin_acc_forzmp.data.az = foot_origin_acc_forzmp(2);
+      m_foot_origin_acc_forzmp.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmpOut.write();
+
+      m_foot_origin_acc_forzmp2.data.ax = foot_origin_acc_forzmp2(0);
+      m_foot_origin_acc_forzmp2.data.ay = foot_origin_acc_forzmp2(1);
+      m_foot_origin_acc_forzmp2.data.az = foot_origin_acc_forzmp2(2);
+      m_foot_origin_acc_forzmp2.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmp2Out.write();
+
+      m_foot_origin_acc_forzmp3.data.ax = foot_origin_acc_forzmp3(0);
+      m_foot_origin_acc_forzmp3.data.ay = foot_origin_acc_forzmp3(1);
+      m_foot_origin_acc_forzmp3.data.az = foot_origin_acc_forzmp3(2);
+      m_foot_origin_acc_forzmp3.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmp3Out.write();
+      
+      m_foot_origin_acc_forzmp4.data.ax = foot_origin_acc_forzmp4(0);
+      m_foot_origin_acc_forzmp4.data.ay = foot_origin_acc_forzmp4(1);
+      m_foot_origin_acc_forzmp4.data.az = foot_origin_acc_forzmp4(2);
+      m_foot_origin_acc_forzmp4.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmp4Out.write();
+
+      m_foot_origin_acc_forzmp5.data.ax = foot_origin_acc_forzmp5(0);
+      m_foot_origin_acc_forzmp5.data.ay = foot_origin_acc_forzmp5(1);
+      m_foot_origin_acc_forzmp5.data.az = foot_origin_acc_forzmp5(2);
+      m_foot_origin_acc_forzmp5.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmp5Out.write();
+
       m_accRaw_forzmp_forlog.data.ax = accRaw_forzmp_forlog(0);
       m_accRaw_forzmp_forlog.data.ay = accRaw_forzmp_forlog(1);
       m_accRaw_forzmp_forlog.data.az = accRaw_forzmp_forlog(2);
       m_accRaw_forzmp_forlog.tm = m_qRef.tm;
       m_accRaw_forzmp_forlogOut.write();
+
+      m_accRaw_forzmp2_forlog.data.ax = accRaw_forzmp2_forlog(0);
+      m_accRaw_forzmp2_forlog.data.ay = accRaw_forzmp2_forlog(1);
+      m_accRaw_forzmp2_forlog.data.az = accRaw_forzmp2_forlog(2);
+      m_accRaw_forzmp2_forlog.tm = m_qRef.tm;
+      m_accRaw_forzmp2_forlogOut.write();
+
+      m_acc_r2s_o.data.ax = acc_r2s_o(0);
+      m_acc_r2s_o.data.ay = acc_r2s_o(1);
+      m_acc_r2s_o.data.az = acc_r2s_o(2);
+      m_acc_r2s_o.tm = m_qRef.tm;
+      m_acc_r2s_oOut.write();
+
+      m_accRef_forzmp_forlog.data.ax = accRef_forzmp_forlog(0);
+      m_accRef_forzmp_forlog.data.ay = accRef_forzmp_forlog(1);
+      m_accRef_forzmp_forlog.data.az = accRef_forzmp_forlog(2);
+      m_accRef_forzmp_forlog.tm = m_qRef.tm;
+      m_accRef_forzmp_forlogOut.write();
 
       m_foot_origin_acc_byrpy.data.ax = foot_origin_acc_byrpy(0);
       m_foot_origin_acc_byrpy.data.ay = foot_origin_acc_byrpy(1);
@@ -964,6 +1075,25 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_act_base_rpy_vel_filtered.data.avz = act_base_rpy_vel_filtered(2);
       m_act_base_rpy_vel_filtered.tm = m_qRef.tm;
       m_act_base_rpy_vel_filteredOut.write();
+
+      //for logging real values in choreonoid
+      m_choreonoid_realrpy_forlog.tm = m_qRef.tm;
+      m_choreonoid_realrpy_forlogOut.write();
+      m_choreonoid_realrpyvel_forlog.tm = m_qRef.tm;
+      m_choreonoid_realrpyvel_forlogOut.write();
+      m_choreonoid_realrpyacc_forlog.tm = m_qRef.tm;
+      m_choreonoid_realrpyacc_forlogOut.write();
+      
+      m_choreonoid_realpos_forlog.tm = m_qRef.tm;
+      m_choreonoid_realpos_forlogOut.write();
+      m_choreonoid_realpos_filtered.tm = m_qRef.tm;
+      m_choreonoid_realpos_filteredOut.write();
+      m_choreonoid_realvel_forlog.tm = m_qRef.tm;
+      m_choreonoid_realvel_forlogOut.write();
+      m_choreonoid_realvel_filtered.tm = m_qRef.tm;
+      m_choreonoid_realvel_filteredOut.write();
+      m_choreonoid_realacc_forlog.tm = m_qRef.tm;
+      m_choreonoid_realacc_forlogOut.write();
 
       m_currentBaseRpyOut.write();
       m_currentBasePosOut.write();
@@ -1041,33 +1171,69 @@ void Stabilizer::getActualParameters ()
     m_robot->rootLink()->p = hrp::Vector3::Zero();
     m_robot->calcForwardKinematics();
     hrp::Sensor* sen = m_robot->sensor<hrp::RateGyroSensor>("gyrometer");
-    hrp::Matrix33 senR = sen->link->R * sen->localR;
-    hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r, m_rpy.data.p, m_rpy.data.y));
+    hrp::Matrix33 senR = sen->link->R * sen->localR;//init_R_sl * sl_R_s = init_R_s 
+    hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r, m_rpy.data.p, m_rpy.data.y));//o_R_s
     //hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r*0.5, m_rpy.data.p*0.5, m_rpy.data.y*0.5));
-    m_robot->rootLink()->R = act_Rs * (senR.transpose() * m_robot->rootLink()->R);
+    m_robot->rootLink()->R = act_Rs * (senR.transpose() * m_robot->rootLink()->R);//o_R_s * s_R_init * init_R_r = o_R_r
     m_robot->calcForwardKinematics();
     act_base_rpy_buf = act_base_rpy;//for movezmp by acc
     act_base_rpy = hrp::rpyFromRot(m_robot->rootLink()->R);
     calcFootOriginCoords (foot_origin_pos, foot_origin_rot);
+
+    //for movezmp by acc
+    accRaw_forzmp = act_Rs * accRaw_forzmp;
+    accRaw_forzmp_forlog = accRaw_forzmp;//for logger
+
+    //for movezmp by acc for acc2
+    p_r2s_o_prev3 = p_r2s_o_prev2;
+    p_r2s_o_prev2 = p_r2s_o_prev1;
+    p_r2s_o_prev1 = m_robot->rootLink()->R * sen->localPos; //rs_o = o_R_r rs_r
+    acc_r2s_o = (p_r2s_o_prev1 - 2*p_r2s_o_prev2 + p_r2s_o_prev3)/(dt*dt);
+    //accRaw_forzmp2 = act_Rs * accRaw_forzmp - acc_r2s_o;
+    accRaw_forzmp2 = accRaw_forzmp - acc_r2s_o;
+    accRaw_forzmp2_forlog = accRaw_forzmp2;//for logger
+    //std::cerr << std::fixed << std::setprecision(7) << "|(" << acc_r2s_o(0) << ", " <<acc_r2s_o(1) << ", " << acc_r2s_o(2) << ")| = "<< acc_r2s_o.norm() <<std::endl;
+    //std::cerr << std::fixed << "(" << sen->localPos(0) << ", " <<sen->localPos(1) << ", " << sen->localPos(2) << ")"<< std::endl;
     
-    //for move_zmp_by_acc
+    //for movezmp_by_acc_1
     foot_origin_pos_buf3 = foot_origin_pos_buf2;
     foot_origin_pos_buf2 = foot_origin_pos_buf1;
     foot_origin_pos_buf1 = foot_origin_pos;
     foot_origin_acc = (foot_origin_pos_buf1-2*foot_origin_pos_buf2+foot_origin_pos_buf3)/(dt*dt);
-    accRaw_forzmp = act_Rs * accRaw_forzmp;
-    accRaw_forzmp_forlog = accRaw_forzmp;
     foot_origin_acc_forzmp = accRaw_forzmp + foot_origin_acc;
 
+    //for movezmp_by_acc_2
     act_base_rpy_vel = (act_base_rpy - act_base_rpy_buf)/dt;
     act_base_rpy_vel_filtered_buf = act_base_rpy_vel_filtered;
     act_base_rpy_vel_filtered = act_base_rpy_vel_filter->passFilter(act_base_rpy_vel);
-    act_base_rpy_acc = (act_base_rpy_filtered - act_base_rpy_filtered)/dt;
+    act_base_rpy_acc = (act_base_rpy_vel_filtered - act_base_rpy_vel_filtered_buf)/dt;
     foot_origin_acc_byrpy = act_base_rpy_acc.cross(foot_origin_pos);
     foot_origin_acc_forzmp2 = accRaw_forzmp + foot_origin_acc_byrpy;
+
+    //for movezmp_by_acc_3
+    accRef_forzmp = - act_Rs * accRef_forzmp;
+    accRef_forzmp_forlog = accRef_forzmp;//for logger
+    foot_origin_acc_forzmp3 = accRaw_forzmp + foot_origin_acc_byrpy + accRef_forzmp;
+
+    //for movezmp_by_acc_4
+    foot_origin_drot = foot_origin_rot.transpose() * foot_origin_rot_prev;
+    foot_origin_pos_prev3 = foot_origin_drot * foot_origin_pos_prev2;
+    foot_origin_pos_prev2 = foot_origin_drot * foot_origin_pos_prev1;
+    foot_origin_pos_prev1 = foot_origin_pos;
+    foot_origin_acc2 = (foot_origin_pos_prev1 - 2*foot_origin_pos_prev2 + foot_origin_pos_prev3)/(dt*dt);
+    foot_origin_rot_prev = foot_origin_rot;    
+    foot_origin_acc_forzmp4 = accRaw_forzmp + foot_origin_acc2;
+
+    //for movezmp_by_acc5
+    foot_origin_acc_forzmp5 = accRaw_forzmp2 + foot_origin_acc2;
+
+    //hrp::Vector3 foot_origin_acc_diff;
+    //foot_origin_acc_diff = foot_origin_acc_forzmp4 - foot_origin_acc_forzmp;
+    //std::cerr << std::fixed << std::setprecision(5) << "(" << foot_origin_acc_diff(0) << ", " <<foot_origin_acc_diff(1) << ", " << foot_origin_acc_diff(2) << ")"<< std::endl;
     
-    //for move_zmp_by_acc debug print
-    std::cerr << std::fixed << std::setprecision(5) << "(" << accRaw_forzmp(0) << ", " <<accRaw_forzmp(1) << ", " <<accRaw_forzmp(2)<< ") + (" << foot_origin_acc(0) << ", " <<foot_origin_acc(1) << ", " <<foot_origin_acc(2)<< ") = (" << foot_origin_acc_forzmp(0) << ", " <<foot_origin_acc_forzmp(1) << ", " <<foot_origin_acc_forzmp(2)<<")" << std::endl;
+    //for movezmp_by_acc debug print
+    //std::cerr << std::fixed << std::setprecision(5) << "(" << accRaw_forzmp(0) << ", " <<accRaw_forzmp(1) << ", " <<accRaw_forzmp(2)<< ") + (" << foot_origin_acc(0) << ", " <<foot_origin_acc(1) << ", " <<foot_origin_acc(2)<< ") = (" << foot_origin_acc_forzmp(0) << ", " <<foot_origin_acc_forzmp(1) << ", " <<foot_origin_acc_forzmp(2)<<")" << std::endl;
+    
   } else {
     for ( int i = 0; i < m_robot->numJoints(); i++ ) {
       m_robot->joint(i)->q = qorg[i];

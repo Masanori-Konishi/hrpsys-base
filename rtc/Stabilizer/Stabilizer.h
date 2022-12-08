@@ -183,15 +183,33 @@ class Stabilizer
   RTC::TimedBoolean m_walkingStates;
   RTC::TimedPoint3D m_sbpCogOffset;
 
-  //for move_zmp_by_acc
+  //for movezmp_by_acc
+  RTC::TimedAcceleration3D m_accRef_forzmp;
   RTC::TimedAcceleration3D m_accRaw_forzmp;
+  RTC::TimedAcceleration3D m_acc_r2s_o;
   RTC::TimedAcceleration3D m_accRaw_forzmp_forlog;
+  RTC::TimedAcceleration3D m_accRaw_forzmp2_forlog;
+  RTC::TimedAcceleration3D m_accRef_forzmp_forlog;
   RTC::TimedAcceleration3D m_foot_origin_acc;
   RTC::TimedAcceleration3D m_foot_origin_acc2;
   RTC::TimedAcceleration3D m_foot_origin_acc_forzmp;
+  RTC::TimedAcceleration3D m_foot_origin_acc_forzmp2;
+  RTC::TimedAcceleration3D m_foot_origin_acc_forzmp3;
+  RTC::TimedAcceleration3D m_foot_origin_acc_forzmp4;
+  RTC::TimedAcceleration3D m_foot_origin_acc_forzmp5;
   RTC::TimedAcceleration3D m_foot_origin_acc_byrpy;
   RTC::TimedAngularVelocity3D m_act_base_rpy_vel_filtered;
-    
+
+  //for logging real values in choreonoid
+  RTC::TimedPoint3D m_choreonoid_realrpy_forlog;
+  RTC::TimedPoint3D m_choreonoid_realrpyvel_forlog;
+  RTC::TimedPoint3D m_choreonoid_realrpyacc_forlog;
+  RTC::TimedPoint3D m_choreonoid_realpos_forlog;
+  RTC::TimedPoint3D m_choreonoid_realpos_filtered;
+  RTC::TimedPoint3D m_choreonoid_realvel_forlog;
+  RTC::TimedPoint3D m_choreonoid_realvel_filtered;
+  RTC::TimedPoint3D m_choreonoid_realacc_forlog;
+
   // for debug ouput
   RTC::TimedPoint3D m_originRefZmp, m_originRefCog, m_originRefCogVel, m_originNewZmp;
   RTC::TimedPoint3D m_originActZmp, m_originActCog, m_originActCogVel;
@@ -255,14 +273,42 @@ class Stabilizer
   RTC::OutPort<RTC::TimedDoubleSeq> m_debugDataOut;
   RTC::OutPort<RTC::TimedLongSeq> m_beepCommandOut;
 
-  //for move_zmp_by_acc
+  //for movezmp_by_acc
+  RTC::InPort<RTC::TimedAcceleration3D> m_accRef_forzmpIn;
   RTC::InPort<RTC::TimedAcceleration3D> m_accRaw_forzmpIn;
   RTC::OutPort<RTC::TimedAcceleration3D> m_accRaw_forzmp_forlogOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_accRaw_forzmp2_forlogOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_acc_r2s_oOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_accRef_forzmp_forlogOut;
   RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_accOut;
   RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc2Out;
   RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_forzmpOut;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_forzmp2Out;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_forzmp3Out;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_forzmp4Out;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_forzmp5Out;
   RTC::OutPort<RTC::TimedAcceleration3D> m_foot_origin_acc_byrpyOut;
   RTC::OutPort<RTC::TimedAngularVelocity3D> m_act_base_rpy_vel_filteredOut;
+
+  //for logging real values in choreonoid
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realrpy_forlogIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realrpyvel_forlogIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realrpyacc_forlogIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realpos_filteredIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realpos_forlogIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realvel_filteredIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realvel_forlogIn;
+  RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realacc_forlogIn;
+    
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realrpy_forlogOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realrpyvel_forlogOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realrpyacc_forlogOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realpos_filteredOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realpos_forlogOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realvel_forlogOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realvel_filteredOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_choreonoid_realacc_forlogOut;
+
     //hrp::Vector3 foot_origin_acc, accRaw_forzmp, foot_origin_acc_forzmp;
 
   // </rtc-template>
@@ -388,11 +434,15 @@ class Stabilizer
   bool ninebot_learning_mode_lv_x;
   hrp::Vector3 ninebot_learning_grad_J_lv_x, ninebot_learning_lv_x_pid_gain, ninebot_learning_rate_pid_lv_x;
   BeepClient bc;
-    //for move_zmp_by_acc
+    //for movezmp_by_acc
     hrp::Vector3 foot_origin_pos_buf1, foot_origin_pos_buf2, foot_origin_pos_buf3;
-    hrp::Vector3 foot_origin_acc,foot_origin_acc2, accRaw_forzmp, foot_origin_acc_forzmp, accRaw_forzmp_forlog, foot_origin_acc_byrpy;
-    hrp::Vector3 act_base_rpy_buf, act_base_rpy_vel, act_base_rpy_vel_filtered, act_base_rpy_vel_filtered_buf;
+    hrp::Vector3 foot_origin_pos_prev1, foot_origin_pos_prev2, foot_origin_pos_prev3;
+    hrp::Vector3 p_r2s_o_prev1, p_r2s_o_prev2, p_r2s_o_prev3, acc_r2s_o; 
+    hrp::Vector3 foot_origin_acc, foot_origin_acc2, foot_origin_acc_forzmp, foot_origin_acc_forzmp2,foot_origin_acc_forzmp3,foot_origin_acc_forzmp4,foot_origin_acc_forzmp5; 
+    hrp::Vector3 accRaw_forzmp, accRaw_forzmp2, accRaw_forzmp_forlog, accRaw_forzmp2_forlog, accRef_forzmp, accRef_forzmp_forlog, foot_origin_acc_byrpy;
+    hrp::Vector3 act_base_rpy_buf, act_base_rpy_vel,act_base_rpy_acc, act_base_rpy_vel_filtered, act_base_rpy_vel_filtered_buf;
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > act_base_rpy_vel_filter;
+    hrp::Matrix33 foot_origin_drot, foot_origin_rot_prev;
 };
 
 

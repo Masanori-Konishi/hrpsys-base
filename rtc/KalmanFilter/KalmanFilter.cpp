@@ -51,7 +51,9 @@ KalmanFilter::KalmanFilter(RTC::Manager* manager)
     m_rpyRawOut("rpy_raw", m_rpyRaw),
     m_baseRpyCurrentOut("baseRpyCurrent", m_baseRpyCurrent),
     m_KalmanFilterServicePort("KalmanFilterService"),
+    //for movezmp by acc
     m_accRaw_forzmpOut("accRaw_forzmpOut", m_accRaw_forzmp),
+    m_accRef_forzmpOut("accRef_forzmpOut", m_accRef_forzmp),
     // </rtc-template>
     m_robot(hrp::BodyPtr()),
     m_debugLevel(0),
@@ -93,6 +95,7 @@ RTC::ReturnCode_t KalmanFilter::onInitialize()
   addOutPort("baseRpyCurrent", m_baseRpyCurrentOut);
   //for movezmp by acc
   addOutPort("accRaw_forzmpOut", m_accRaw_forzmpOut);
+  addOutPort("accRef_forzmpOut", m_accRef_forzmpOut);
 
   // Set service provider to Ports
   m_KalmanFilterServicePort.registerProvider("service0", "KalmanFilterService", m_service0);
@@ -261,8 +264,14 @@ RTC::ReturnCode_t KalmanFilter::onExecute(RTC::UniqueId ec_id)
     m_accRaw_forzmp.data.ax = accRaw_forzmp(0);
     m_accRaw_forzmp.data.ay = accRaw_forzmp(1);
     m_accRaw_forzmp.data.az = accRaw_forzmp(2);
-    //std::cerr << "[debug] accRaw_forzmp ax= " << accRaw_forzmp(0) << " ay= " <<accRaw_forzmp(1) << " az= " <<accRaw_forzmp(2)<< std::endl;
     m_accRaw_forzmp.tm = m_accRaw.tm;
+    Eigen::Vector3d accRef_forzmp = hrp::Vector3(sx_ref-acc_offset(0), sy_ref-acc_offset(1), sz_ref-acc_offset(2));
+    accRef_forzmp = sensorR_offset * accRef_forzmp;
+    m_accRef_forzmp.data.ax = accRef_forzmp(0);
+    m_accRef_forzmp.data.ay = accRef_forzmp(1);
+    m_accRef_forzmp.data.az = accRef_forzmp(2);
+    m_accRef_forzmp.tm = m_accRef.tm;
+    //std::cerr << "[debug] accRaw_forzmp ax= " << accRaw_forzmp(0) << " ay= " <<accRaw_forzmp(1) << " az= " <<accRaw_forzmp(2)<< std::endl;
     // add time stamp
     m_rateO.tm = m_rate.tm;
     m_acc.tm = m_accRaw.tm;
@@ -276,6 +285,7 @@ RTC::ReturnCode_t KalmanFilter::onExecute(RTC::UniqueId ec_id)
     m_rpyRawOut.write();
     m_baseRpyCurrentOut.write();
     m_accRaw_forzmpOut.write();
+    m_accRef_forzmpOut.write();
   }
   return RTC::RTC_OK;
 }

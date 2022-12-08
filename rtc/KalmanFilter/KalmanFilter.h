@@ -122,6 +122,7 @@ protected:
   TimedOrientation3D m_rpyRaw_prev;
   //for movezmp by acc
   TimedAcceleration3D m_accRaw_forzmp;
+  TimedAcceleration3D m_accRef_forzmp;
 
   // DataInPort declaration
   // <rtc-template block="inport_declare">
@@ -144,6 +145,7 @@ protected:
   RTC::OutPort<RTC::TimedOrientation3D> m_baseRpyCurrentOut;
   //movezmp by acc
   OutPort<TimedAcceleration3D> m_accRaw_forzmpOut;
+  OutPort<TimedAcceleration3D> m_accRef_forzmpOut;
   
   
   // </rtc-template>
