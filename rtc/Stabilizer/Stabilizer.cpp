@@ -1164,9 +1164,27 @@ void Stabilizer::getActualParameters ()
   hrp::Matrix33 foot_origin_rot;
   if (st_algorithm != OpenHRP::StabilizerService::TPCC) {
     // update by current joint angles
+    // for ( int i = 0; i < m_robot->numJoints(); i++ ){
+    //   m_robot->joint(i)->q = m_qCurrent.data[i];
+    // }
+    // for movezmp to get ref st angle vector
     for ( int i = 0; i < m_robot->numJoints(); i++ ){
-      m_robot->joint(i)->q = m_qCurrent.data[i];
+      m_robot->joint(i)->q = qorg[i];
     }
+    
+    //for movezmp by acc split term
+    // m_robot->rootLink()->p = hrp::Vector3::Zero();
+    // m_robot->rootLink()->R = hrp::Matrix33::Identity();
+    // m_robot->calcForwardKinematics();
+    // calcFootOriginCoords (foot_origin_pos_r, foot_origin_rot_r);//look from rootlink
+    // foot_origin_vel_r = (foot_origin_pos_r - foot_origin_pos_r_prev)/dt;
+    // foot_origin_acc_r = (foot_origin_vel_r - foot_origin_vel_r_prev)/dt;
+    // foot_origin_pos_r_prev = foot_origin_pos_r;
+    // foot_origin_vel_r_prev = foot_origin_vel_r;
+    // term1 = act_base_rpy_acc.cross(foot_origin_rot_r * foot_origin_pos_r);
+    // term2 = act_base_rpy_vel.cross(act_base_rpy_vel.cross(foot_origin_rot_r * foot_origin_pos_r));
+    // term3 = 2*act_base_rpy_vel.cross(foot_origin_rot_r * foot_origin_vel_r);
+    
     // tempolary
     m_robot->rootLink()->p = hrp::Vector3::Zero();
     m_robot->calcForwardKinematics();
@@ -1175,10 +1193,18 @@ void Stabilizer::getActualParameters ()
     hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r, m_rpy.data.p, m_rpy.data.y));//o_R_s
     //hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r*0.5, m_rpy.data.p*0.5, m_rpy.data.y*0.5));
     m_robot->rootLink()->R = act_Rs * (senR.transpose() * m_robot->rootLink()->R);//o_R_s * s_R_init * init_R_r = o_R_r
+    //  act_base_rpy_buf = act_base_rpy;//for movezmp by acc
+    //  act_base_rpy = hrp::rpyFromRot(m_robot->rootLink()->R);
     m_robot->calcForwardKinematics();
+    calcFootOriginCoords (foot_origin_pos, foot_origin_rot);
+
+    //calc angular_vel,acc
     act_base_rpy_buf = act_base_rpy;//for movezmp by acc
     act_base_rpy = hrp::rpyFromRot(m_robot->rootLink()->R);
-    calcFootOriginCoords (foot_origin_pos, foot_origin_rot);
+    act_base_rpy_vel = (act_base_rpy - act_base_rpy_buf)/dt;
+    act_base_rpy_vel_filtered_buf = act_base_rpy_vel_filtered;
+    act_base_rpy_vel_filtered = act_base_rpy_vel_filter->passFilter(act_base_rpy_vel);
+    act_base_rpy_acc = (act_base_rpy_vel_filtered - act_base_rpy_vel_filtered_buf)/dt;
 
     //for movezmp by acc
     accRaw_forzmp = act_Rs * accRaw_forzmp;
@@ -1203,10 +1229,6 @@ void Stabilizer::getActualParameters ()
     foot_origin_acc_forzmp = accRaw_forzmp + foot_origin_acc;
 
     //for movezmp_by_acc_2
-    act_base_rpy_vel = (act_base_rpy - act_base_rpy_buf)/dt;
-    act_base_rpy_vel_filtered_buf = act_base_rpy_vel_filtered;
-    act_base_rpy_vel_filtered = act_base_rpy_vel_filter->passFilter(act_base_rpy_vel);
-    act_base_rpy_acc = (act_base_rpy_vel_filtered - act_base_rpy_vel_filtered_buf)/dt;
     foot_origin_acc_byrpy = act_base_rpy_acc.cross(foot_origin_pos);
     foot_origin_acc_forzmp2 = accRaw_forzmp + foot_origin_acc_byrpy;
 
@@ -1234,6 +1256,20 @@ void Stabilizer::getActualParameters ()
     //for movezmp_by_acc debug print
     //std::cerr << std::fixed << std::setprecision(5) << "(" << accRaw_forzmp(0) << ", " <<accRaw_forzmp(1) << ", " <<accRaw_forzmp(2)<< ") + (" << foot_origin_acc(0) << ", " <<foot_origin_acc(1) << ", " <<foot_origin_acc(2)<< ") = (" << foot_origin_acc_forzmp(0) << ", " <<foot_origin_acc_forzmp(1) << ", " <<foot_origin_acc_forzmp(2)<<")" << std::endl;
     
+    //for return original state
+    for ( int i = 0; i < m_robot->numJoints(); i++ ){
+      m_robot->joint(i)->q = m_qCurrent.data[i];
+    }
+    m_robot->rootLink()->p = hrp::Vector3::Zero();
+    m_robot->calcForwardKinematics();
+    sen = m_robot->sensor<hrp::RateGyroSensor>("gyrometer");
+    senR = sen->link->R * sen->localR;//init_R_sl * sl_R_s = init_R_s 
+    act_Rs = hrp::rotFromRpy(m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);//o_R_s
+    //hrp::Matrix33 act_Rs(hrp::rotFromRpy(m_rpy.data.r*0.5, m_rpy.data.p*0.5, m_rpy.data.y*0.5));
+    m_robot->rootLink()->R = act_Rs * (senR.transpose() * m_robot->rootLink()->R);//o_R_s * s_R_init * init_R_r = o_R_r
+    m_robot->calcForwardKinematics();
+    calcFootOriginCoords (foot_origin_pos, foot_origin_rot);
+
   } else {
     for ( int i = 0; i < m_robot->numJoints(); i++ ) {
       m_robot->joint(i)->q = qorg[i];
