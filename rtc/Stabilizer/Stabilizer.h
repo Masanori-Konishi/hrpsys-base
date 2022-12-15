@@ -210,6 +210,8 @@ class Stabilizer
   RTC::TimedAcceleration3D m_term4;
   RTC::TimedAcceleration3D m_term4_2;
   RTC::TimedPoint3D m_foot_origin_pos_r;
+  RTC::TimedPoint3D m_act_cog_f;
+  RTC::TimedPoint3D m_dzmp_acc_term;
 
   //for logging real values in choreonoid
   RTC::TimedPoint3D m_choreonoid_realrpy_forlog;
@@ -310,6 +312,8 @@ class Stabilizer
   RTC::OutPort<RTC::TimedPoint3D> m_act_base_rpy_vel_filteredOut;
   RTC::OutPort<RTC::TimedPoint3D> m_act_base_rpy_acc_filteredOut;
   RTC::OutPort<RTC::TimedPoint3D> m_foot_origin_pos_rOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_act_cog_fOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_dzmp_acc_termOut;
 
   //for logging real values in choreonoid
   RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realrpy_forlogIn;
@@ -468,8 +472,11 @@ class Stabilizer
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > act_base_rpy_vel_filter;
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > act_base_rpy_acc_filter;
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > accRaw_filter;
+    boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > accRaw_filter2;
+    boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > cog_filter;
     hrp::Matrix33 foot_origin_drot, foot_origin_rot_prev, foot_origin_rot_r;
     hrp::Vector3 foot_origin_pos_r, foot_origin_vel_r, foot_origin_acc_r, foot_origin_pos_r_prev, foot_origin_vel_r_prev;
+    hrp::Vector3 act_cog_f, dzmp_acc_term;
 };
 
 

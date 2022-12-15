@@ -129,6 +129,8 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_act_base_rpy_vel_filteredOut("act_base_rpy_vel_filteredOut", m_act_base_rpy_vel_filtered),
     m_act_base_rpy_acc_filteredOut("act_base_rpy_acc_filteredOut", m_act_base_rpy_acc_filtered),
     m_foot_origin_pos_rOut("foot_origin_pos_rOut", m_foot_origin_pos_r),
+    m_act_cog_fOut("act_cog_fOut",m_act_cog_f),
+    m_dzmp_acc_termOut("dzmp_acc_termOut", m_dzmp_acc_term),
     //for logging real values in choreonoid
     m_choreonoid_realrpy_forlogIn("choreonoid_realrpy_forlogIn", m_choreonoid_realrpy_forlog),
     m_choreonoid_realrpy_forlogOut("choreonoid_realrpy_forlogOut", m_choreonoid_realrpy_forlog),
@@ -241,6 +243,8 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("act_base_rpy_vel_filtered", m_act_base_rpy_vel_filteredOut);
   addOutPort("act_base_rpy_acc_filtered", m_act_base_rpy_acc_filteredOut);
   addOutPort("foot_origin_pos_r", m_foot_origin_pos_rOut);
+  addOutPort("act_cog_f", m_act_cog_fOut);
+  addOutPort("dzmp_acc_term", m_dzmp_acc_termOut);
   //for logging real values in choreonoid
   addInPort("choreonoid_realrpy_forlogIn", m_choreonoid_realrpy_forlogIn),
   addOutPort("choreonoid_realrpy_forlogOut", m_choreonoid_realrpy_forlogOut);
@@ -642,6 +646,8 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   act_base_rpy_vel_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   act_base_rpy_acc_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   accRaw_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  accRaw_filter2 = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  cog_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(1.0, dt, hrp::Vector3::Zero()));
 
 
   // for debug output
@@ -1160,6 +1166,18 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_act_base_rpy_acc_filtered.tm = m_qRef.tm;
       m_act_base_rpy_acc_filteredOut.write();
 
+      m_act_cog_f.data.x = act_cog_f(0);
+      m_act_cog_f.data.y = act_cog_f(1);
+      m_act_cog_f.data.z = act_cog_f(2);
+      m_act_cog_f.tm = m_qRef.tm;
+      m_act_cog_fOut.write();
+
+      m_dzmp_acc_term.data.x = dzmp_acc_term(0);
+      m_dzmp_acc_term.data.y = dzmp_acc_term(1);
+      m_dzmp_acc_term.data.z = dzmp_acc_term(2);
+      m_dzmp_acc_term.tm = m_qRef.tm;
+      m_dzmp_acc_termOut.write();
+
       //for logging real values in choreonoid
       m_choreonoid_realrpy_forlog.tm = m_qRef.tm;
       m_choreonoid_realrpy_forlogOut.write();
@@ -1282,19 +1300,20 @@ void Stabilizer::getActualParameters ()
 
     //root acc
     accRaw_forzmp = act_Rs * accRaw_forzmp;
-    accRaw_forzmp_forlog = accRaw_forzmp;//for logger
-
-    //root acc2
+    //consider distance between IMU and RootLink
     p_r2s_o_prev3 = p_r2s_o_prev2;
     p_r2s_o_prev2 = p_r2s_o_prev1;
     p_r2s_o_prev1 = m_robot->rootLink()->R * sen->localPos; //rs_o = o_R_r rs_r
     acc_r2s_o = (p_r2s_o_prev1 - 2*p_r2s_o_prev2 + p_r2s_o_prev3)/(dt*dt);
     //accRaw_forzmp2 = act_Rs * accRaw_forzmp - acc_r2s_o;
-    accRaw_forzmp2 = accRaw_forzmp - acc_r2s_o;
-    accRaw_forzmp2_forlog = accRaw_forzmp2;//for logger
+    accRaw_forzmp = accRaw_forzmp - acc_r2s_o;
+    accRaw_forzmp_forlog = accRaw_forzmp;//for logger
 
-    //root acc3
-    accRaw_forzmp3 = accRaw_filter->passFilter(accRaw_forzmp2);
+    //lowpass 1st order
+    accRaw_forzmp2 = accRaw_filter->passFilter(accRaw_forzmp);
+    accRaw_forzmp2_forlog = accRaw_forzmp2;//for logger
+    //lowpass 2nd order
+    accRaw_forzmp3 = accRaw_filter2->passFilter(accRaw_forzmp2);
     accRaw_forzmp3_forlog = accRaw_forzmp3;//for logger
 
     //for movezmp_by_acc_1
@@ -1424,8 +1443,16 @@ void Stabilizer::getActualParameters ()
     hrp::Vector3 dcogvel=foot_origin_rot * (ref_cogvel - act_cogvel);
     hrp::Vector3 dzmp=foot_origin_rot * (ref_zmp - act_zmp);
     new_refzmp = foot_origin_rot * new_refzmp + foot_origin_pos;
+
+    //for movezmp by acc
+    act_cog_f = cog_filter->passFilter(m_robot->rootLink()->R * act_cog);
+    dzmp_acc_term = foot_origin_acc_forzmp7 * act_cog_f(2) / eefm_gravitational_acceleration;
+    dzmp_acc_term(2) = 0.0;
+
+    //std::cerr <<"[debug]" << dzmp_acc_term(0) <<", "<< dzmp_acc_term(1) <<", "<< dzmp_acc_term(2) <<std::endl;
+    
     for (size_t i = 0; i < 2; i++) {
-      new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i);
+        new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i) + dzmp_acc_term(i);
     }
     //std::cerr << "hrp::rpyFromRot(act_ee_R[0])(0): " << hrp::rpyFromRot(act_ee_R[0])(0) << " [rad]" << std::endl;
     //std::cerr << "hrp::rpyFromRot(act_ee_R[1])(0): " << hrp::rpyFromRot(act_ee_R[1])(0) << " [rad]" << std::endl;
