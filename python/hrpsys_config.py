@@ -933,6 +933,7 @@ class HrpsysConfigurator(object):
             self.connectLoggerPort(self.st, 'foot_origin_acc_byrpyOut')
             self.connectLoggerPort(self.st, 'accRaw_forzmp_forlogOut')
             self.connectLoggerPort(self.st, 'accRaw_forzmp2_forlogOut')
+            self.connectLoggerPort(self.st, 'accRaw_forzmp3_forlogOut')
             self.connectLoggerPort(self.st, 'accRef_forzmp_forlogOut')
             self.connectLoggerPort(self.st, 'act_base_rpy_vel_filteredOut')
             self.connectLoggerPort(self.st, 'act_base_rpy_acc_filteredOut')
