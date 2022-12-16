@@ -131,6 +131,7 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_foot_origin_pos_rOut("foot_origin_pos_rOut", m_foot_origin_pos_r),
     m_act_cog_fOut("act_cog_fOut",m_act_cog_f),
     m_dzmp_acc_termOut("dzmp_acc_termOut", m_dzmp_acc_term),
+    m_new_refzmp_rawOut("new_refzmp_rawOut", m_new_refzmp_raw),
     //for logging real values in choreonoid
     m_choreonoid_realrpy_forlogIn("choreonoid_realrpy_forlogIn", m_choreonoid_realrpy_forlog),
     m_choreonoid_realrpy_forlogOut("choreonoid_realrpy_forlogOut", m_choreonoid_realrpy_forlog),
@@ -245,6 +246,7 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("foot_origin_pos_r", m_foot_origin_pos_rOut);
   addOutPort("act_cog_f", m_act_cog_fOut);
   addOutPort("dzmp_acc_term", m_dzmp_acc_termOut);
+  addOutPort("new_refzmp_raw", m_new_refzmp_rawOut);
   //for logging real values in choreonoid
   addInPort("choreonoid_realrpy_forlogIn", m_choreonoid_realrpy_forlogIn),
   addOutPort("choreonoid_realrpy_forlogOut", m_choreonoid_realrpy_forlogOut);
@@ -1178,6 +1180,24 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_dzmp_acc_term.tm = m_qRef.tm;
       m_dzmp_acc_termOut.write();
 
+      m_new_refzmp_raw.data.x = new_refzmp_raw(0);
+      m_new_refzmp_raw.data.y = new_refzmp_raw(1);
+      m_new_refzmp_raw.data.z = new_refzmp_raw(2);
+      m_new_refzmp_raw.tm = m_qRef.tm;
+      m_new_refzmp_rawOut.write();
+
+      m_segway_u_vel.data.x = segway_u_vel(0);
+      m_segway_u_vel.data.y = segway_u_vel(1);
+      m_segway_u_vel.data.z = segway_u_vel(2);
+      m_segway_u_vel.tm = m_qRef.tm;
+      m_segway_u_velOut.write();
+
+      m_segway_u_omega.data.x = segway_u_omega(0);
+      m_segway_u_omega.data.y = segway_u_omega(1);
+      m_segway_u_omega.data.z = segway_u_omega(2);
+      m_segway_u_omega.tm = m_qRef.tm;
+      m_segway_u_omegaOut.write();
+
       //for logging real values in choreonoid
       m_choreonoid_realrpy_forlog.tm = m_qRef.tm;
       m_choreonoid_realrpy_forlogOut.write();
@@ -1446,13 +1466,19 @@ void Stabilizer::getActualParameters ()
 
     //for movezmp by acc
     act_cog_f = cog_filter->passFilter(m_robot->rootLink()->R * act_cog);
-    dzmp_acc_term = foot_origin_acc_forzmp7 * act_cog_f(2) / eefm_gravitational_acceleration;
+    dzmp_acc_term = - foot_origin_acc_forzmp7 * act_cog_f(2) / eefm_gravitational_acceleration;
     dzmp_acc_term(2) = 0.0;
 
     //std::cerr <<"[debug]" << dzmp_acc_term(0) <<", "<< dzmp_acc_term(1) <<", "<< dzmp_acc_term(2) <<std::endl;
     
     for (size_t i = 0; i < 2; i++) {
-        new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i) - dzmp_acc_term(i);
+        new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i);
+    }
+    new_refzmp_raw = new_refzmp;//for log
+    if(!cop_segway_mode){
+        for (size_t i = 0; i < 2; i++) {
+            new_refzmp(i) += dzmp_acc_term(i);
+        }
     }
     //std::cerr << "hrp::rpyFromRot(act_ee_R[0])(0): " << hrp::rpyFromRot(act_ee_R[0])(0) << " [rad]" << std::endl;
     //std::cerr << "hrp::rpyFromRot(act_ee_R[1])(0): " << hrp::rpyFromRot(act_ee_R[1])(0) << " [rad]" << std::endl;
@@ -1596,7 +1622,7 @@ void Stabilizer::getActualParameters ()
         szd->calc_convex_hull(support_polygon_vetices, ref_contact_states, ee_pos, ee_rot);
         if (!szd->is_inside_support_polygon(tmp_new_refzmp, hrp::Vector3::Zero(), true, std::string(m_profile.instance_name))) new_refzmp.head(2) = tmp_new_refzmp;
       }
-
+      
       // Distribute ZMP into each EE force/moment at each COP
       if (st_algorithm == OpenHRP::StabilizerService::EEFM) {
           // Modified version of distribution in Equation (4)-(6) and (10)-(13) in the paper [1].
@@ -1628,8 +1654,24 @@ void Stabilizer::getActualParameters ()
                                                          eefm_gravitational_acceleration * total_mass, dt,
                                                          DEBUGP, std::string(m_profile.instance_name));
       }
+
+      //for cop_segway
+      if(cop_segway_mode){
+          double u_omega = segway_av_yaw_pgain * av_yaw_error
+              + segway_av_yaw_igain * integral_av_yaw_error
+              + segway_av_yaw_dgain * differential_av_yaw_error;
+
+          double u_vel = segway_lv_x_pgain * lv_x_error
+              + segway_lv_x_igain * integral_lv_x_error
+              + segway_lv_x_dgain * differential_lv_x_error;
+
+          cop_pos[0](0) += (u_vel - u_omega);
+          cop_pos[1](0) += (u_vel + u_omega);
+      }
+
       // for debug output
       new_refzmp = foot_origin_rot.transpose() * (new_refzmp - foot_origin_pos);
+      new_refzmp_raw = foot_origin_rot.transpose() * (new_refzmp_raw - foot_origin_pos);
     }
 
     segway_av_yaw_target = m_SegwaySensors.data[0];
@@ -1800,12 +1842,10 @@ void Stabilizer::getActualParameters ()
             segway_learning_mode_after_ride = false;
           } else {
             // Set PID gains default
-            segway_av_yaw_pgain = 0.00045;
-            segway_av_yaw_igain = 0.00045;
-            segway_av_yaw_dgain = 0.00003;
-            // segway_av_yaw_pgain = 0.0015;
-            // segway_av_yaw_igain = 0.0015;
-            // segway_av_yaw_dgain = 0.0001;
+            
+            segway_av_yaw_pgain = 0.00045; // segway_av_yaw_pgain = 0.0015;
+            segway_av_yaw_igain = 0.00045; // segway_av_yaw_igain = 0.0015;
+            segway_av_yaw_dgain = 0.00003; // segway_av_yaw_dgain = 0.0001;
             segway_lv_x_pgain = 0.004;
             segway_lv_x_igain = 0.001;
             segway_lv_x_dgain = 0.0001;
@@ -1845,12 +1885,22 @@ void Stabilizer::getActualParameters ()
           integral_av_yaw_error = 0.0;
           integral_lv_x_error = 0.0;
           // Set PID gains default
-          segway_av_yaw_pgain = 0.0015;
-          segway_av_yaw_igain = 0.0;
-          segway_av_yaw_dgain = 0.0001;
-          segway_lv_x_pgain = 0.0015;
-          segway_lv_x_igain = 0.0001;
-          segway_lv_x_dgain = 0.0001;
+          if(!cop_segway_mode){
+              segway_av_yaw_pgain = 0.0015;
+              segway_av_yaw_igain = 0.0;
+              segway_av_yaw_dgain = 0.0001;
+              segway_lv_x_pgain = 0.0015;
+              segway_lv_x_igain = 0.0001;
+              segway_lv_x_dgain = 0.0001;
+          }
+          else{
+              segway_av_yaw_pgain = 0.0015;
+              segway_av_yaw_igain = 0.0;
+              segway_av_yaw_dgain = 0.0001;
+              segway_lv_x_pgain = 0.0015;
+              segway_lv_x_igain = 0.0001;
+              segway_lv_x_dgain = 0.0001;
+          }
           // Initialize
           legs_ride_phase = 0;
           segway2_ride_mode = false;
@@ -2126,20 +2176,23 @@ void Stabilizer::getActualParameters ()
       m_debugData.data[30] = dp_input; // u_omega
       m_debugData.data[31] = model_estimate_output; // act dot_omega
 
+      // segway_feedback
       // RLEG Pitch Feedback Control
-      stikp[0].d_foot_rpy[1] = stikp[0].d_foot_rpy[1] - segway_av_yaw_pgain * av_yaw_error
-                                                      - segway_av_yaw_igain * integral_av_yaw_error
-                                                      - segway_av_yaw_dgain * differential_av_yaw_error
-                                                      + segway_lv_x_pgain * lv_x_error
-                                                      + segway_lv_x_igain * integral_lv_x_error
-                                                      + segway_lv_x_dgain * differential_lv_x_error;
-      // LLEG Pitch Feedback Control
-      stikp[1].d_foot_rpy[1] = stikp[1].d_foot_rpy[1] + segway_av_yaw_pgain * av_yaw_error
-                                                      + segway_av_yaw_igain * integral_av_yaw_error
-                                                      + segway_av_yaw_dgain * differential_av_yaw_error
-                                                      + segway_lv_x_pgain * lv_x_error
-                                                      + segway_lv_x_igain * integral_lv_x_error
-                                                      + segway_lv_x_dgain * differential_lv_x_error;
+      if(!cop_segway_mode){
+          stikp[0].d_foot_rpy[1] = stikp[0].d_foot_rpy[1] - segway_av_yaw_pgain * av_yaw_error
+              - segway_av_yaw_igain * integral_av_yaw_error
+              - segway_av_yaw_dgain * differential_av_yaw_error
+              + segway_lv_x_pgain * lv_x_error
+              + segway_lv_x_igain * integral_lv_x_error
+              + segway_lv_x_dgain * differential_lv_x_error;
+          // LLEG Pitch Feedback Control
+          stikp[1].d_foot_rpy[1] = stikp[1].d_foot_rpy[1] + segway_av_yaw_pgain * av_yaw_error
+              + segway_av_yaw_igain * integral_av_yaw_error
+              + segway_av_yaw_dgain * differential_av_yaw_error
+              + segway_lv_x_pgain * lv_x_error
+              + segway_lv_x_igain * integral_lv_x_error
+              + segway_lv_x_dgain * differential_lv_x_error;
+      }
       // RLEG Roll Feedback Control
       //stikp[0].d_foot_rpy[0] = stikp[0].d_foot_rpy[0] - deg2rad(segway2_oneleg_roll_ps3joy);
       //stikp[0].d_foot_rpy[0] = stikp[0].d_foot_rpy[0] - 0.4 * (0.0 - hrp::rpyFromRot(act_ee_R[0])(0)); // (20191209)

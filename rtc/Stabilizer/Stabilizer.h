@@ -212,6 +212,9 @@ class Stabilizer
   RTC::TimedPoint3D m_foot_origin_pos_r;
   RTC::TimedPoint3D m_act_cog_f;
   RTC::TimedPoint3D m_dzmp_acc_term;
+  RTC::TimedPoint3D m_new_refzmp_raw;
+  RTC::TimedPoint3D m_segway_u_omega;
+  RTC::TimedPoint3D m_segway_u_vel;
 
   //for logging real values in choreonoid
   RTC::TimedPoint3D m_choreonoid_realrpy_forlog;
@@ -314,6 +317,9 @@ class Stabilizer
   RTC::OutPort<RTC::TimedPoint3D> m_foot_origin_pos_rOut;
   RTC::OutPort<RTC::TimedPoint3D> m_act_cog_fOut;
   RTC::OutPort<RTC::TimedPoint3D> m_dzmp_acc_termOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_new_refzmp_rawOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_segway_u_omegaOut;
+  RTC::OutPort<RTC::TimedPoint3D> m_segway_u_velOut;
 
   //for logging real values in choreonoid
   RTC::InPort<RTC::TimedPoint3D> m_choreonoid_realrpy_forlogIn;
@@ -477,6 +483,10 @@ class Stabilizer
     hrp::Matrix33 foot_origin_drot, foot_origin_rot_prev, foot_origin_rot_r;
     hrp::Vector3 foot_origin_pos_r, foot_origin_vel_r, foot_origin_acc_r, foot_origin_pos_r_prev, foot_origin_vel_r_prev;
     hrp::Vector3 act_cog_f, dzmp_acc_term;
+    hrp::Vector3 new_refzmp_raw;
+
+    //cop_segway
+    bool cop_segway_mode = true;
 };
 
 
