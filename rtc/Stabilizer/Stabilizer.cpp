@@ -1452,7 +1452,7 @@ void Stabilizer::getActualParameters ()
     //std::cerr <<"[debug]" << dzmp_acc_term(0) <<", "<< dzmp_acc_term(1) <<", "<< dzmp_acc_term(2) <<std::endl;
     
     for (size_t i = 0; i < 2; i++) {
-        new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i) + dzmp_acc_term(i);
+        new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i) - dzmp_acc_term(i);
     }
     //std::cerr << "hrp::rpyFromRot(act_ee_R[0])(0): " << hrp::rpyFromRot(act_ee_R[0])(0) << " [rad]" << std::endl;
     //std::cerr << "hrp::rpyFromRot(act_ee_R[1])(0): " << hrp::rpyFromRot(act_ee_R[1])(0) << " [rad]" << std::endl;
