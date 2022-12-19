@@ -1389,6 +1389,7 @@ void Stabilizer::getActualParameters ()
     //for movezmp by acc 7 (split and use ref to double dot value)
     term4_2 = foot_origin_rot_r * accRef_forzmp;
     foot_origin_acc_forzmp7 = accRaw_forzmp3 + term1 + term2 + term3 + term4_2;
+    foot_origin_acc_forzmp = accRaw_forzmp2 + term1 + term2 + term3 + term4_2;
 
     //hrp::Vector3 foot_origin_acc_diff;
     //foot_origin_acc_diff = foot_origin_acc_forzmp4 - foot_origin_acc_forzmp;
