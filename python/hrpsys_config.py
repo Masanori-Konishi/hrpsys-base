@@ -940,6 +940,8 @@ class HrpsysConfigurator(object):
             self.connectLoggerPort(self.st, 'act_cog_fOut')
             self.connectLoggerPort(self.st, 'dzmp_acc_termOut')
             self.connectLoggerPort(self.st, 'new_refzmp_rawOut')
+            self.connectLoggerPort(self.st, 'segway_u_velOut')
+            self.connectLoggerPort(self.st, 'segway_u_omegaOut')
             self.connectLoggerPort(self.st, 'choreonoid_realrpy_forlogOut')
             self.connectLoggerPort(self.st, 'choreonoid_realrpyvel_forlogOut')
             self.connectLoggerPort(self.st, 'choreonoid_realrpyacc_forlogOut')

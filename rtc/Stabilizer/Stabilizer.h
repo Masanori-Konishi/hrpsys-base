@@ -486,7 +486,9 @@ class Stabilizer
     hrp::Vector3 new_refzmp_raw;
 
     //cop_segway
+    double segway_u_omega, segway_u_vel;
     bool cop_segway_mode = true;
+    int foot_origin_acc_flag_prev=0, foot_origin_acc_flag=0;
 };
 
 
