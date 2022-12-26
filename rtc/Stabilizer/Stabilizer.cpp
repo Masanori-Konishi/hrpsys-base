@@ -3181,7 +3181,7 @@ void Stabilizer::getParameter(OpenHRP::StabilizerService::stParam& i_stp)
   i_stp.eefm_ee_error_cutoff_freq = stikp[0].target_ee_diff_p_filter->getCutOffFreq();
   i_stp.eefm_use_force_difference_control = eefm_use_force_difference_control;
   i_stp.eefm_use_swing_damping = eefm_use_swing_damping;
-  i_stp.segway_use_zmp_feedback = segway_use_zmp_feedback;
+  //i_stp.segway_use_zmp_feedback = segway_use_zmp_feedback;
   for (size_t i = 0; i < 3; ++i) {
       i_stp.eefm_swing_damping_force_thre[i] = eefm_swing_damping_force_thre[i];
       i_stp.eefm_swing_damping_moment_thre[i] = eefm_swing_damping_moment_thre[i];
