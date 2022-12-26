@@ -116,12 +116,19 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_foot_origin_acc_forzmp5Out("foot_origin_acc_forzmp5Out", m_foot_origin_acc_forzmp5),
     m_foot_origin_acc_forzmp6Out("foot_origin_acc_forzmp6Out", m_foot_origin_acc_forzmp6),
     m_foot_origin_acc_forzmp7Out("foot_origin_acc_forzmp7Out", m_foot_origin_acc_forzmp7),
+    m_foot_origin_acc_forzmp8Out("foot_origin_acc_forzmp8Out", m_foot_origin_acc_forzmp8),
+    m_foot_origin_acc_forzmp9Out("foot_origin_acc_forzmp9Out", m_foot_origin_acc_forzmp9),
     m_term1Out("term1Out", m_term1),
     m_term2Out("term2Out", m_term2),
     m_term3Out("term3Out", m_term3),
     m_term4Out("term4Out", m_term4),
     m_term4_2Out("term4_2Out", m_term4_2),
+    m_term4_2_filtered2Out("term4_2_filtered2Out", m_term4_2_filtered2),
+    m_term1rOut("term1rOut", m_term1r),
+    m_term2rOut("term2rOut", m_term2r),
+    m_term3rOut("term3rOut", m_term3r),
     m_foot_origin_acc_byrpyOut("foot_origin_acc_byrpyOut", m_foot_origin_acc_byrpy),
+    m_accRaw_forzmp0_forlogOut("accRaw_forzmp0_forlogOut", m_accRaw_forzmp0_forlog),
     m_accRaw_forzmp_forlogOut("accRaw_forzmp_forlogOut", m_accRaw_forzmp_forlog),
     m_accRaw_forzmp2_forlogOut("accRaw_forzmp2_forlogOut", m_accRaw_forzmp2_forlog),
     m_accRaw_forzmp3_forlogOut("accRaw_forzmp3_forlogOut", m_accRaw_forzmp3_forlog),
@@ -129,6 +136,13 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_act_base_rpy_vel_filteredOut("act_base_rpy_vel_filteredOut", m_act_base_rpy_vel_filtered),
     m_act_base_rpy_acc_filteredOut("act_base_rpy_acc_filteredOut", m_act_base_rpy_acc_filtered),
     m_foot_origin_pos_rOut("foot_origin_pos_rOut", m_foot_origin_pos_r),
+    m_foot_origin_vel_rOut("foot_origin_vel_rOut", m_foot_origin_vel_r),
+    m_foot_origin_acc_rOut("foot_origin_acc_rOut", m_foot_origin_acc_r),
+    m_foot_origin_pos_r_filteredOut("foot_origin_pos_r_filteredOut", m_foot_origin_pos_r_filtered),
+    m_foot_origin_vel_r_filteredOut("foot_origin_vel_r_filteredOut", m_foot_origin_vel_r_filtered),
+    m_foot_origin_acc_r_filteredOut("foot_origin_acc_r_filteredOut", m_foot_origin_acc_r_filtered),
+    m_rate_rpyvel_filteredOut("rate_rpyvel_filteredOut", m_rate_rpyvel_filtered),
+    m_rate_rpyacc_filteredOut("rate_rpyacc_filteredOut", m_rate_rpyacc_filtered),
     m_act_cog_fOut("act_cog_fOut",m_act_cog_f),
     m_dzmp_acc_termOut("dzmp_acc_termOut", m_dzmp_acc_term),
     m_new_refzmp_rawOut("new_refzmp_rawOut", m_new_refzmp_raw),
@@ -225,6 +239,7 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addInPort("accRaw_forzmpIn", m_accRaw_forzmpIn);
   addOutPort("m_acc_r2s_oOut", m_acc_r2s_oOut);
   addOutPort("accRef_forzmp_forlogOut", m_accRef_forzmp_forlogOut);
+  addOutPort("accRaw_forzmp0_forlogOut", m_accRaw_forzmp0_forlogOut);
   addOutPort("accRaw_forzmp_forlogOut", m_accRaw_forzmp_forlogOut);
   addOutPort("accRaw_forzmp2_forlogOut", m_accRaw_forzmp2_forlogOut);
   addOutPort("accRaw_forzmp3_forlogOut", m_accRaw_forzmp3_forlogOut);
@@ -237,15 +252,28 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("foot_origin_acc_forzmp5", m_foot_origin_acc_forzmp5Out);
   addOutPort("foot_origin_acc_forzmp6", m_foot_origin_acc_forzmp6Out);
   addOutPort("foot_origin_acc_forzmp7", m_foot_origin_acc_forzmp7Out);
+  addOutPort("foot_origin_acc_forzmp8", m_foot_origin_acc_forzmp8Out);
+  addOutPort("foot_origin_acc_forzmp9", m_foot_origin_acc_forzmp9Out);
   addOutPort("term1", m_term1Out);
   addOutPort("term2", m_term2Out);
   addOutPort("term3", m_term3Out);
   addOutPort("term4", m_term4Out);
   addOutPort("term4_2", m_term4_2Out);
+  addOutPort("term4_2_filtered2", m_term4_2_filtered2Out);
+  addOutPort("term1r", m_term1rOut);
+  addOutPort("term2r", m_term2rOut);
+  addOutPort("term3r", m_term3rOut);
   addOutPort("foot_origin_acc_byrpy", m_foot_origin_acc_byrpyOut);
   addOutPort("act_base_rpy_vel_filtered", m_act_base_rpy_vel_filteredOut);
   addOutPort("act_base_rpy_acc_filtered", m_act_base_rpy_acc_filteredOut);
   addOutPort("foot_origin_pos_r", m_foot_origin_pos_rOut);
+  addOutPort("foot_origin_vel_r", m_foot_origin_vel_rOut);
+  addOutPort("foot_origin_acc_r", m_foot_origin_acc_rOut);
+  addOutPort("foot_origin_pos_r_filtered", m_foot_origin_pos_r_filteredOut);
+  addOutPort("foot_origin_vel_r_filtered", m_foot_origin_vel_r_filteredOut);
+  addOutPort("foot_origin_acc_r_filtered", m_foot_origin_acc_r_filteredOut);
+  addOutPort("rate_rpyvel_filtered", m_rate_rpyvel_filteredOut);
+  addOutPort("rate_rpyacc_filtered", m_rate_rpyacc_filteredOut);
   addOutPort("act_cog_f", m_act_cog_fOut);
   addOutPort("dzmp_acc_term", m_dzmp_acc_termOut);
   addOutPort("new_refzmp_raw", m_new_refzmp_rawOut);
@@ -653,6 +681,13 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   act_base_rpy_acc_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   accRaw_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   accRaw_filter2 = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  accRef_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  accRef_filter2 = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  rate_rpyacc_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+ rate_rpyvel_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  foot_origin_pos_r_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  foot_origin_vel_r_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  foot_origin_acc_r_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   cog_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(1.0, dt, hrp::Vector3::Zero()));
 
 
@@ -819,6 +854,9 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
   }
   if (m_rateIn.isNew()) {
     m_rateIn.read();
+    rate_forzmp(0) = m_rate.data.avx;
+    rate_forzmp(1) = m_rate.data.avy;
+    rate_forzmp(2) = m_rate.data.avz;
   }
   if (m_accIn.isNew()) {
     m_accIn.read();
@@ -1088,6 +1126,18 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_foot_origin_acc_forzmp7.tm = m_qRef.tm;
       m_foot_origin_acc_forzmp7Out.write();
 
+      m_foot_origin_acc_forzmp8.data.ax = foot_origin_acc_forzmp8(0);
+      m_foot_origin_acc_forzmp8.data.ay = foot_origin_acc_forzmp8(1);
+      m_foot_origin_acc_forzmp8.data.az = foot_origin_acc_forzmp8(2);
+      m_foot_origin_acc_forzmp8.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmp8Out.write();
+
+      m_foot_origin_acc_forzmp9.data.ax = foot_origin_acc_forzmp9(0);
+      m_foot_origin_acc_forzmp9.data.ay = foot_origin_acc_forzmp9(1);
+      m_foot_origin_acc_forzmp9.data.az = foot_origin_acc_forzmp9(2);
+      m_foot_origin_acc_forzmp9.tm = m_qRef.tm;
+      m_foot_origin_acc_forzmp9Out.write();
+
       m_term1.data.ax = term1(0);
       m_term1.data.ay = term1(1);
       m_term1.data.az = term1(2);
@@ -1118,11 +1168,71 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_term4_2.tm = m_qRef.tm;
       m_term4_2Out.write();
 
+      m_term4_2_filtered2.data.ax = term4_2_filtered2(0);
+      m_term4_2_filtered2.data.ay = term4_2_filtered2(1);
+      m_term4_2_filtered2.data.az = term4_2_filtered2(2);
+      m_term4_2_filtered2.tm = m_qRef.tm;
+      m_term4_2_filtered2Out.write();
+
+      m_term1r.data.ax = term1r(0);
+      m_term1r.data.ay = term1r(1);
+      m_term1r.data.az = term1r(2);
+      m_term1r.tm = m_qRef.tm;
+      m_term1rOut.write();
+
+      m_term2r.data.ax = term2r(0);
+      m_term2r.data.ay = term2r(1);
+      m_term2r.data.az = term2r(2);
+      m_term2r.tm = m_qRef.tm;
+      m_term2rOut.write();
+
+      m_term3r.data.ax = term3r(0);
+      m_term3r.data.ay = term3r(1);
+      m_term3r.data.az = term3r(2);
+      m_term3r.tm = m_qRef.tm;
+      m_term3rOut.write();
+
       m_foot_origin_pos_r.data.x = foot_origin_pos_r(0);
       m_foot_origin_pos_r.data.y = foot_origin_pos_r(1);
       m_foot_origin_pos_r.data.z = foot_origin_pos_r(2);
       m_foot_origin_pos_r.tm = m_qRef.tm;
       m_foot_origin_pos_rOut.write();
+
+      m_foot_origin_vel_r.data.x = foot_origin_vel_r(0);
+      m_foot_origin_vel_r.data.y = foot_origin_vel_r(1);
+      m_foot_origin_vel_r.data.z = foot_origin_vel_r(2);
+      m_foot_origin_vel_r.tm = m_qRef.tm;
+      m_foot_origin_vel_rOut.write();
+
+      m_foot_origin_acc_r.data.x = foot_origin_acc_r(0);
+      m_foot_origin_acc_r.data.y = foot_origin_acc_r(1);
+      m_foot_origin_acc_r.data.z = foot_origin_acc_r(2);
+      m_foot_origin_acc_r.tm = m_qRef.tm;
+      m_foot_origin_acc_rOut.write();
+
+      m_foot_origin_pos_r_filtered.data.x = foot_origin_pos_r_filtered(0);
+      m_foot_origin_pos_r_filtered.data.y = foot_origin_pos_r_filtered(1);
+      m_foot_origin_pos_r_filtered.data.z = foot_origin_pos_r_filtered(2);
+      m_foot_origin_pos_r_filtered.tm = m_qRef.tm;
+      m_foot_origin_pos_r_filteredOut.write();
+
+      m_foot_origin_vel_r_filtered.data.x = foot_origin_vel_r_filtered(0);
+      m_foot_origin_vel_r_filtered.data.y = foot_origin_vel_r_filtered(1);
+      m_foot_origin_vel_r_filtered.data.z = foot_origin_vel_r_filtered(2);
+      m_foot_origin_vel_r_filtered.tm = m_qRef.tm;
+      m_foot_origin_vel_r_filteredOut.write();
+
+      m_foot_origin_acc_r_filtered.data.x = foot_origin_acc_r_filtered(0);
+      m_foot_origin_acc_r_filtered.data.y = foot_origin_acc_r_filtered(1);
+      m_foot_origin_acc_r_filtered.data.z = foot_origin_acc_r_filtered(2);
+      m_foot_origin_acc_r_filtered.tm = m_qRef.tm;
+      m_foot_origin_acc_r_filteredOut.write();
+
+      m_accRaw_forzmp0_forlog.data.ax = accRaw_forzmp0_forlog(0);
+      m_accRaw_forzmp0_forlog.data.ay = accRaw_forzmp0_forlog(1);
+      m_accRaw_forzmp0_forlog.data.az = accRaw_forzmp0_forlog(2);
+      m_accRaw_forzmp0_forlog.tm = m_qRef.tm;
+      m_accRaw_forzmp0_forlogOut.write();
 
       m_accRaw_forzmp_forlog.data.ax = accRaw_forzmp_forlog(0);
       m_accRaw_forzmp_forlog.data.ay = accRaw_forzmp_forlog(1);
@@ -1171,6 +1281,18 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_act_base_rpy_acc_filtered.data.z = act_base_rpy_acc_filtered(2);
       m_act_base_rpy_acc_filtered.tm = m_qRef.tm;
       m_act_base_rpy_acc_filteredOut.write();
+
+      m_rate_rpyvel_filtered.data.x = rate_rpyvel_filtered(0);
+      m_rate_rpyvel_filtered.data.y = rate_rpyvel_filtered(1);
+      m_rate_rpyvel_filtered.data.z = rate_rpyvel_filtered(2);
+      m_rate_rpyvel_filtered.tm = m_qRef.tm;
+      m_rate_rpyvel_filteredOut.write();
+
+      m_rate_rpyacc_filtered.data.x = rate_rpyacc_filtered(0);
+      m_rate_rpyacc_filtered.data.y = rate_rpyacc_filtered(1);
+      m_rate_rpyacc_filtered.data.z = rate_rpyacc_filtered(2);
+      m_rate_rpyacc_filtered.tm = m_qRef.tm;
+      m_rate_rpyacc_filteredOut.write();
 
       m_act_cog_f.data.x = act_cog_f(0);
       m_act_cog_f.data.y = act_cog_f(1);
@@ -1269,21 +1391,17 @@ void Stabilizer::calcFootOriginCoords (hrp::Vector3& foot_origin_pos, hrp::Matri
     leg_c[i].rot(0,1) = yv1(0); leg_c[i].rot(1,1) = yv1(1); leg_c[i].rot(2,1) = yv1(2);
     leg_c[i].rot(0,2) = ez(0); leg_c[i].rot(1,2) = ez(1); leg_c[i].rot(2,2) = ez(2);
   }
-  foot_origin_acc_flag_prev = foot_origin_acc_flag;
   if (ref_contact_states[contact_states_index_map["rleg"]] &&
       ref_contact_states[contact_states_index_map["lleg"]]) {
     rats::mid_coords(tmpc, 0.5, leg_c[0], leg_c[1]);
     foot_origin_pos = tmpc.pos;
     foot_origin_rot = tmpc.rot;
-    foot_origin_acc_flag = 0;
   } else if (ref_contact_states[contact_states_index_map["rleg"]]) {
     foot_origin_pos = leg_c[contact_states_index_map["rleg"]].pos;
     foot_origin_rot = leg_c[contact_states_index_map["rleg"]].rot;
-    foot_origin_acc_flag = 1;
   } else {
     foot_origin_pos = leg_c[contact_states_index_map["lleg"]].pos;
     foot_origin_rot = leg_c[contact_states_index_map["lleg"]].rot;
-    foot_origin_acc_flag = 2;
   }
 
 }
@@ -1306,6 +1424,18 @@ void Stabilizer::getActualParameters ()
     // tempolary
     m_robot->rootLink()->p = hrp::Vector3::Zero();
     m_robot->calcForwardKinematics();
+
+    foot_origin_acc_flag_prev = foot_origin_acc_flag;//for prevent spike
+    if (ref_contact_states[contact_states_index_map["rleg"]] &&
+      ref_contact_states[contact_states_index_map["lleg"]]) {
+        foot_origin_acc_flag = 0;
+    } else if (ref_contact_states[contact_states_index_map["rleg"]]) {
+        foot_origin_acc_flag = 1;
+    } else {
+        foot_origin_acc_flag = 2;
+    }
+    //std::cerr << "prev = " << foot_origin_acc_flag_prev << " now = " <<foot_origin_acc_flag <<" judge = "<< (foot_origin_acc_flag_prev == foot_origin_acc_flag) <<std::endl;
+
     calcFootOriginCoords (foot_origin_pos_r, foot_origin_rot_r);//calc foot origin from the rootlink coords
     
     hrp::Sensor* sen = m_robot->sensor<hrp::RateGyroSensor>("gyrometer");
@@ -1327,15 +1457,23 @@ void Stabilizer::getActualParameters ()
 
     act_base_rpy_acc_filtered = act_base_rpy_acc_filter->passFilter(act_base_rpy_acc);
 
+    //calc angular_vel,acc from gyrometer directly
+    rate_rpyvel_filtered_prev = rate_rpyvel_filtered;
+    rate_rpyvel_filtered = rate_rpyvel_filter->passFilter(rate_forzmp);
+    rate_rpyacc = (rate_rpyvel_filtered - rate_rpyvel_filtered_prev)/dt;
+    rate_rpyacc_filtered = rate_rpyacc_filter->passFilter(rate_rpyacc);
+
     //root acc
-    accRaw_forzmp = act_Rs * accRaw_forzmp;
+    accRaw_forzmp0 = act_Rs * accRaw_forzmp;
+    accRaw_forzmp0_forlog = accRaw_forzmp0;//for logger
+
     //consider distance between IMU and RootLink
     p_r2s_o_prev3 = p_r2s_o_prev2;
     p_r2s_o_prev2 = p_r2s_o_prev1;
     p_r2s_o_prev1 = m_robot->rootLink()->R * sen->localPos; //rs_o = o_R_r rs_r
     acc_r2s_o = (p_r2s_o_prev1 - 2*p_r2s_o_prev2 + p_r2s_o_prev3)/(dt*dt);
     //accRaw_forzmp2 = act_Rs * accRaw_forzmp - acc_r2s_o;
-    accRaw_forzmp = accRaw_forzmp - acc_r2s_o;
+    accRaw_forzmp = accRaw_forzmp0 - acc_r2s_o;
     accRaw_forzmp_forlog = accRaw_forzmp;//for logger
 
     //lowpass 1st order
@@ -1375,11 +1513,25 @@ void Stabilizer::getActualParameters ()
 
     //for movezmp_by_acc_6(split term)
     if (foot_origin_acc_flag_prev == foot_origin_acc_flag){
+        //calc raw values
         foot_origin_vel_r = (foot_origin_pos_r - foot_origin_pos_r_prev)/dt;
         foot_origin_acc_r = (foot_origin_vel_r - foot_origin_vel_r_prev)/dt;
         foot_origin_pos_r_prev = foot_origin_pos_r;
         foot_origin_vel_r_prev = foot_origin_vel_r;
+
+        //calc filtered values
+        foot_origin_pos_r_filtered_prev = foot_origin_pos_r_filtered;
+        foot_origin_pos_r_filtered = foot_origin_pos_r_filter -> passFilter(foot_origin_pos_r);
+        foot_origin_vel_r_filtered_prev = foot_origin_vel_r_filtered;
+        foot_origin_vel_r_filtered = foot_origin_vel_r_filter -> passFilter((foot_origin_pos_r_filtered - foot_origin_pos_r_filtered_prev)/dt);
+        foot_origin_acc_r_filtered = foot_origin_acc_r_filter -> passFilter((foot_origin_vel_r_filtered - foot_origin_vel_r_filtered_prev)/dt);
     }
+    else{
+        foot_origin_pos_r_prev = foot_origin_pos_r;
+        foot_origin_vel_r_prev = foot_origin_vel_r;
+        std::cerr << "[debug] pass" << std::endl;
+    }
+    
     term1 = act_base_rpy_acc_filtered.cross(foot_origin_rot_r * foot_origin_pos_r);
     term2 = act_base_rpy_vel_filtered.cross(act_base_rpy_vel_filtered.cross(foot_origin_rot_r * foot_origin_pos_r));
     term3 = 2*act_base_rpy_vel_filtered.cross(foot_origin_rot_r * foot_origin_vel_r);
@@ -1390,6 +1542,17 @@ void Stabilizer::getActualParameters ()
     term4_2 = foot_origin_rot_r * accRef_forzmp;
     foot_origin_acc_forzmp7 = accRaw_forzmp3 + term1 + term2 + term3 + term4_2;
     foot_origin_acc_forzmp = accRaw_forzmp2 + term1 + term2 + term3 + term4_2;
+
+    //for movezmp by acc 8
+    term1r = rate_rpyacc_filtered.cross(foot_origin_rot_r * foot_origin_pos_r);
+    term2r = rate_rpyvel_filtered.cross(rate_rpyvel_filtered.cross(foot_origin_rot_r * foot_origin_pos_r));
+    term3r = 2*rate_rpyvel_filtered.cross(foot_origin_rot_r * foot_origin_vel_r);
+    foot_origin_acc_forzmp8 = accRaw_forzmp3 + term1r + term2r + term3r + term4_2;
+
+    //for movezmp by acc 9
+    term4_2_filtered = accRef_filter -> passFilter(term4_2);
+    term4_2_filtered2 = accRef_filter -> passFilter(term4_2_filtered);
+    foot_origin_acc_forzmp9 = accRaw_forzmp3 + term1r + term2r + term3r + term4_2_filtered2;
 
     //hrp::Vector3 foot_origin_acc_diff;
     //foot_origin_acc_diff = foot_origin_acc_forzmp4 - foot_origin_acc_forzmp;
@@ -2197,7 +2360,7 @@ void Stabilizer::getActualParameters ()
               + segway_lv_x_igain * integral_lv_x_error
               + segway_lv_x_dgain * differential_lv_x_error;
 
-      std::cerr << ", segway_u_vel = " << segway_u_vel <<", p = " << segway_lv_x_pgain << ", lv_x_error = " << lv_x_error <<std::endl;
+      //std::cerr << ", segway_u_vel = " << segway_u_vel <<", p = " << segway_lv_x_pgain << ", lv_x_error = " << lv_x_error <<std::endl;
 
       if(cop_segway_mode){
           // moment Feedback Control
