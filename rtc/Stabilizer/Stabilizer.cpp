@@ -141,6 +141,13 @@ Stabilizer::Stabilizer(RTC::Manager* manager)
     m_foot_origin_pos_r_filteredOut("foot_origin_pos_r_filteredOut", m_foot_origin_pos_r_filtered),
     m_foot_origin_vel_r_filteredOut("foot_origin_vel_r_filteredOut", m_foot_origin_vel_r_filtered),
     m_foot_origin_acc_r_filteredOut("foot_origin_acc_r_filteredOut", m_foot_origin_acc_r_filtered),
+          //eval not use st ref
+    m_foot_origin_pos_raOut("foot_origin_pos_raOut", m_foot_origin_pos_ra),
+    m_foot_origin_vel_raOut("foot_origin_vel_raOut", m_foot_origin_vel_ra),
+    m_foot_origin_acc_raOut("foot_origin_acc_raOut", m_foot_origin_acc_ra),
+    m_foot_origin_pos_ra_filteredOut("foot_origin_pos_ra_filteredOut", m_foot_origin_pos_ra_filtered),
+    m_foot_origin_vel_ra_filteredOut("foot_origin_vel_ra_filteredOut", m_foot_origin_vel_ra_filtered),
+    m_foot_origin_acc_ra_filteredOut("foot_origin_acc_ra_filteredOut", m_foot_origin_acc_ra_filtered),
     m_rate_rpyvel_filteredOut("rate_rpyvel_filteredOut", m_rate_rpyvel_filtered),
     m_rate_rpyacc_filteredOut("rate_rpyacc_filteredOut", m_rate_rpyacc_filtered),
     m_act_cog_fOut("act_cog_fOut",m_act_cog_f),
@@ -272,6 +279,13 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   addOutPort("foot_origin_pos_r_filtered", m_foot_origin_pos_r_filteredOut);
   addOutPort("foot_origin_vel_r_filtered", m_foot_origin_vel_r_filteredOut);
   addOutPort("foot_origin_acc_r_filtered", m_foot_origin_acc_r_filteredOut);
+  //eval eval not st ref
+  addOutPort("foot_origin_pos_ra", m_foot_origin_pos_raOut);
+  addOutPort("foot_origin_vel_ra", m_foot_origin_vel_raOut);
+  addOutPort("foot_origin_acc_ra", m_foot_origin_acc_raOut);
+  addOutPort("foot_origin_pos_ra_filtered", m_foot_origin_pos_ra_filteredOut);
+  addOutPort("foot_origin_vel_ra_filtered", m_foot_origin_vel_ra_filteredOut);
+  addOutPort("foot_origin_acc_ra_filtered", m_foot_origin_acc_ra_filteredOut);
   addOutPort("rate_rpyvel_filtered", m_rate_rpyvel_filteredOut);
   addOutPort("rate_rpyacc_filtered", m_rate_rpyacc_filteredOut);
   addOutPort("act_cog_f", m_act_cog_fOut);
@@ -688,6 +702,10 @@ RTC::ReturnCode_t Stabilizer::onInitialize()
   foot_origin_pos_r_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   foot_origin_vel_r_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   foot_origin_acc_r_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  //eval not st ref
+  foot_origin_pos_ra_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  foot_origin_vel_ra_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
+  foot_origin_acc_ra_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(4.0, dt, hrp::Vector3::Zero()));
   cog_filter = boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> >(new FirstOrderLowPassFilter<hrp::Vector3>(1.0, dt, hrp::Vector3::Zero()));
 
 
@@ -1228,6 +1246,43 @@ RTC::ReturnCode_t Stabilizer::onExecute(RTC::UniqueId ec_id)
       m_foot_origin_acc_r_filtered.tm = m_qRef.tm;
       m_foot_origin_acc_r_filteredOut.write();
 
+      //eval not st ref
+      m_foot_origin_pos_ra.data.x = foot_origin_pos_ra(0);
+      m_foot_origin_pos_ra.data.y = foot_origin_pos_ra(1);
+      m_foot_origin_pos_ra.data.z = foot_origin_pos_ra(2);
+      m_foot_origin_pos_ra.tm = m_qRef.tm;
+      m_foot_origin_pos_raOut.write();
+
+      m_foot_origin_vel_ra.data.x = foot_origin_vel_ra(0);
+      m_foot_origin_vel_ra.data.y = foot_origin_vel_ra(1);
+      m_foot_origin_vel_ra.data.z = foot_origin_vel_ra(2);
+      m_foot_origin_vel_ra.tm = m_qRef.tm;
+      m_foot_origin_vel_raOut.write();
+
+      m_foot_origin_acc_ra.data.x = foot_origin_acc_ra(0);
+      m_foot_origin_acc_ra.data.y = foot_origin_acc_ra(1);
+      m_foot_origin_acc_ra.data.z = foot_origin_acc_ra(2);
+      m_foot_origin_acc_ra.tm = m_qRef.tm;
+      m_foot_origin_acc_raOut.write();
+
+      m_foot_origin_pos_ra_filtered.data.x = foot_origin_pos_ra_filtered(0);
+      m_foot_origin_pos_ra_filtered.data.y = foot_origin_pos_ra_filtered(1);
+      m_foot_origin_pos_ra_filtered.data.z = foot_origin_pos_ra_filtered(2);
+      m_foot_origin_pos_ra_filtered.tm = m_qRef.tm;
+      m_foot_origin_pos_ra_filteredOut.write();
+
+      m_foot_origin_vel_ra_filtered.data.x = foot_origin_vel_ra_filtered(0);
+      m_foot_origin_vel_ra_filtered.data.y = foot_origin_vel_ra_filtered(1);
+      m_foot_origin_vel_ra_filtered.data.z = foot_origin_vel_ra_filtered(2);
+      m_foot_origin_vel_ra_filtered.tm = m_qRef.tm;
+      m_foot_origin_vel_ra_filteredOut.write();
+
+      m_foot_origin_acc_ra_filtered.data.x = foot_origin_acc_ra_filtered(0);
+      m_foot_origin_acc_ra_filtered.data.y = foot_origin_acc_ra_filtered(1);
+      m_foot_origin_acc_ra_filtered.data.z = foot_origin_acc_ra_filtered(2);
+      m_foot_origin_acc_ra_filtered.tm = m_qRef.tm;
+      m_foot_origin_acc_ra_filteredOut.write();
+
       m_accRaw_forzmp0_forlog.data.ax = accRaw_forzmp0_forlog(0);
       m_accRaw_forzmp0_forlog.data.ay = accRaw_forzmp0_forlog(1);
       m_accRaw_forzmp0_forlog.data.az = accRaw_forzmp0_forlog(2);
@@ -1567,6 +1622,27 @@ void Stabilizer::getActualParameters ()
     }
     m_robot->rootLink()->p = hrp::Vector3::Zero();
     m_robot->calcForwardKinematics();
+    //eval not st ref
+    calcFootOriginCoords (foot_origin_pos_ra, foot_origin_rot_ra);
+    if (foot_origin_acc_flag_prev == foot_origin_acc_flag){
+        //calc raw values
+        foot_origin_vel_ra = (foot_origin_pos_ra - foot_origin_pos_ra_prev)/dt;
+        foot_origin_acc_ra = (foot_origin_vel_ra - foot_origin_vel_ra_prev)/dt;
+        foot_origin_pos_ra_prev = foot_origin_pos_ra;
+        foot_origin_vel_ra_prev = foot_origin_vel_ra;
+
+        //calc filtered values
+        foot_origin_pos_ra_filtered_prev = foot_origin_pos_ra_filtered;
+        foot_origin_pos_ra_filtered = foot_origin_pos_ra_filter -> passFilter(foot_origin_pos_ra);
+        foot_origin_vel_ra_filtered_prev = foot_origin_vel_ra_filtered;
+        foot_origin_vel_ra_filtered = foot_origin_vel_ra_filter -> passFilter((foot_origin_pos_ra_filtered - foot_origin_pos_ra_filtered_prev)/dt);
+        foot_origin_acc_ra_filtered = foot_origin_acc_ra_filter -> passFilter((foot_origin_vel_ra_filtered - foot_origin_vel_ra_filtered_prev)/dt);
+    }
+    else{
+        foot_origin_pos_ra_prev = foot_origin_pos_ra;
+        foot_origin_vel_ra_prev = foot_origin_vel_ra;
+        std::cerr << "[debug] pass" << std::endl;
+    }
     sen = m_robot->sensor<hrp::RateGyroSensor>("gyrometer");
     senR = sen->link->R * sen->localR;//init_R_sl * sl_R_s = init_R_s 
     act_Rs = hrp::rotFromRpy(m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);//o_R_s
