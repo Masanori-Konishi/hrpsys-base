@@ -211,6 +211,7 @@ class Stabilizer
   RTC::TimedAcceleration3D m_term2;
   RTC::TimedAcceleration3D m_term3;
   RTC::TimedAcceleration3D m_term4;
+  RTC::TimedAcceleration3D m_term4a;
   RTC::TimedAcceleration3D m_term4_2;
   RTC::TimedAcceleration3D m_term4_2_filtered2;
   RTC::TimedAcceleration3D m_term1r;
@@ -335,6 +336,7 @@ class Stabilizer
   RTC::OutPort<RTC::TimedAcceleration3D> m_term2Out;
   RTC::OutPort<RTC::TimedAcceleration3D> m_term3Out;
   RTC::OutPort<RTC::TimedAcceleration3D> m_term4Out;
+  RTC::OutPort<RTC::TimedAcceleration3D> m_term4aOut;
   RTC::OutPort<RTC::TimedAcceleration3D> m_term4_2Out;
   RTC::OutPort<RTC::TimedAcceleration3D> m_term4_2_filtered2Out;
   RTC::OutPort<RTC::TimedAcceleration3D> m_term1rOut;
@@ -514,7 +516,7 @@ class Stabilizer
     hrp::Vector3 foot_origin_pos_prev1, foot_origin_pos_prev2, foot_origin_pos_prev3;
     hrp::Vector3 p_r2s_o_prev1, p_r2s_o_prev2, p_r2s_o_prev3, acc_r2s_o;
     hrp::Vector3 foot_origin_acc, foot_origin_acc2, foot_origin_acc_forzmp, foot_origin_acc_forzmp2,foot_origin_acc_forzmp3,foot_origin_acc_forzmp4,foot_origin_acc_forzmp5,foot_origin_acc_forzmp6,foot_origin_acc_forzmp7,foot_origin_acc_forzmp8,foot_origin_acc_forzmp9;
-    hrp::Vector3 term1, term2, term3, term4, term4_2, term4_2_filtered, term4_2_filtered2;
+    hrp::Vector3 term1, term2, term3, term4, term4a, term4_2, term4_2_filtered, term4_2_filtered2;
     hrp::Vector3 term1r, term2r, term3r;
     hrp::Vector3 accRaw_forzmp0, accRaw_forzmp, accRaw_forzmp2,accRaw_forzmp3,accRaw_forzmp0_forlog, accRaw_forzmp_forlog, accRaw_forzmp2_forlog, accRaw_forzmp3_forlog, accRef_forzmp, accRef_forzmp_forlog, foot_origin_acc_byrpy;
     hrp::Vector3 accRef_forzmp_filtered, accRef_forzmp_filtered2;
@@ -535,7 +537,7 @@ class Stabilizer
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > foot_origin_pos_ra_filter;
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > foot_origin_vel_ra_filter;
     boost::shared_ptr<FirstOrderLowPassFilter<hrp::Vector3> > foot_origin_acc_ra_filter;
-    hrp::Matrix33 foot_origin_drot, foot_origin_rot_prev, foot_origin_rot_r, foot_origin_rot_ra;
+    hrp::Matrix33 foot_origin_drot, foot_origin_rot_prev, foot_origin_rot_r, foot_origin_rot_ra, o_R_r;
     hrp::Vector3 foot_origin_pos_r, foot_origin_vel_r, foot_origin_acc_r, foot_origin_pos_r_prev, foot_origin_vel_r_prev;
     hrp::Vector3 foot_origin_pos_r_filtered, foot_origin_vel_r_filtered, foot_origin_acc_r_filtered, foot_origin_pos_r_filtered_prev, foot_origin_vel_r_filtered_prev;
     hrp::Vector3 foot_origin_pos_ra, foot_origin_vel_ra, foot_origin_acc_ra, foot_origin_pos_ra_prev, foot_origin_vel_ra_prev;

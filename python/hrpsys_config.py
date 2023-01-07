@@ -931,6 +931,7 @@ class HrpsysConfigurator(object):
             self.connectLoggerPort(self.st, 'term2Out')
             self.connectLoggerPort(self.st, 'term3Out')
             self.connectLoggerPort(self.st, 'term4Out')
+            self.connectLoggerPort(self.st, 'term4aOut')
             self.connectLoggerPort(self.st, 'term4_2Out')
             self.connectLoggerPort(self.st, 'term4_2_filtered2Out')
             self.connectLoggerPort(self.st, 'term1rOut')
