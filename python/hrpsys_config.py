@@ -881,6 +881,7 @@ class HrpsysConfigurator(object):
         #
         if self.kf != None:
             self.connectLoggerPort(self.kf, 'rpy')
+            self.connectLoggerPort(self.kf, 'rateOut')
             #for movezmp by Acc
             #self.connectLoggerPort(self.kf, 'accRaw_forzmpOut')
         if self.sh != None:
