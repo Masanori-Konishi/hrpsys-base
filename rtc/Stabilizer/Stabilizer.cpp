@@ -1734,15 +1734,15 @@ void Stabilizer::getActualParameters ()
 
     //for movezmp by acc
     act_cog_f = cog_filter->passFilter(m_robot->rootLink()->R * act_cog);
-    dzmp_acc_term = - foot_origin_acc_forzmp7 * act_cog_f(2) / eefm_gravitational_acceleration;
+    dzmp_acc_term = - foot_origin_acc_forzmp3 * act_cog_f(2) / eefm_gravitational_acceleration;
     dzmp_acc_term(2) = 0.0;
 
     //std::cerr <<"[debug]" << dzmp_acc_term(0) <<", "<< dzmp_acc_term(1) <<", "<< dzmp_acc_term(2) <<std::endl;
-    
+
     for (size_t i = 0; i < 2; i++) {
         new_refzmp(i) += eefm_k1[i] * transition_smooth_gain * dcog(i) + eefm_k2[i] * transition_smooth_gain * dcogvel(i) + eefm_k3[i] * transition_smooth_gain * dzmp(i) + ref_zmp_aux(i);
     }
-    new_refzmp_raw = new_refzmp;//for log
+    //new_refzmp_raw = new_refzmp;//for log
     // if(!cop_segway_mode){
     //     for (size_t i = 0; i < 2; i++) {
     //         new_refzmp(i) += dzmp_acc_term(i);
@@ -1880,6 +1880,14 @@ void Stabilizer::getActualParameters ()
                         << "ee_pos (" << ee_name[i] << ")    = " << hrp::Vector3(tmpp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]"));
               tmpp = foot_origin_rot.transpose()*(cop_pos[i]-foot_origin_pos);
               std::cerr << ", cop_pos (" << ee_name[i] << ")    = " << hrp::Vector3(tmpp*1e3).format(Eigen::IOFormat(Eigen::StreamPrecision, 0, ", ", ", ", "", "", "[", "]")) << "[mm]" << std::endl;
+          }
+      }
+
+      //add ZMPaccterm
+      new_refzmp_raw = new_refzmp;//for log
+      if(ZMPfeedback_accterm){
+          for (size_t i = 0; i < 2; i++) {
+              new_refzmp(i) += dzmp_acc_term(i);
           }
       }
 

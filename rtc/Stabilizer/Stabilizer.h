@@ -552,6 +552,7 @@ class Stabilizer
     bool segway_use_zmp_feedback = false;
     double segway_u_omega, segway_u_vel;
     bool cop_segway_mode = false;
+    bool ZMPfeedback_accterm = true;
     int foot_origin_acc_flag_prev=0, foot_origin_acc_flag=0;
 };
 
