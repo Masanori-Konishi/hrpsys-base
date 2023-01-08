@@ -547,6 +547,7 @@ class Stabilizer
     hrp::Vector3 rate_forzmp = hrp::Vector3::Zero();
     hrp::Vector3 rate_rpyvel_filtered_prev= hrp::Vector3::Zero(), rate_rpyvel_filtered= hrp::Vector3::Zero(), rate_rpyacc= hrp::Vector3::Zero(), rate_rpyacc_filtered= hrp::Vector3::Zero();
     bool change_contact_state_flag = false;
+    double zmp_accgain = 0.8;
 
     //cop_segway
     bool segway_use_zmp_feedback = false;

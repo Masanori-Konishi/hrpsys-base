@@ -1732,11 +1732,6 @@ void Stabilizer::getActualParameters ()
     hrp::Vector3 dzmp=foot_origin_rot * (ref_zmp - act_zmp);
     new_refzmp = foot_origin_rot * new_refzmp + foot_origin_pos;
 
-    //for movezmp by acc
-    act_cog_f = cog_filter->passFilter(m_robot->rootLink()->R * act_cog);
-    dzmp_acc_term = - foot_origin_acc_forzmp3 * act_cog_f(2) / eefm_gravitational_acceleration;
-    dzmp_acc_term(2) = 0.0;
-
     //std::cerr <<"[debug]" << dzmp_acc_term(0) <<", "<< dzmp_acc_term(1) <<", "<< dzmp_acc_term(2) <<std::endl;
 
     for (size_t i = 0; i < 2; i++) {
@@ -1884,10 +1879,14 @@ void Stabilizer::getActualParameters ()
       }
 
       //add ZMPaccterm
+      act_cog_f = cog_filter->passFilter(m_robot->rootLink()->R * act_cog);
+      dzmp_acc_term = - foot_origin_acc_forzmp3 * act_cog_f(2) / eefm_gravitational_acceleration;
+      dzmp_acc_term(2) = 0.0;
+
       new_refzmp_raw = new_refzmp;//for log
       if(ZMPfeedback_accterm){
           for (size_t i = 0; i < 2; i++) {
-              new_refzmp(i) += dzmp_acc_term(i);
+              new_refzmp(i) += zmp_accgain*dzmp_acc_term(i);
           }
       }
 
