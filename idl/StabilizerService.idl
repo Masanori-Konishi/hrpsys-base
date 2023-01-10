@@ -185,8 +185,8 @@ module OpenHRP
       DblArray3 eefm_swing_rot_damping_gain;
       /// Position damping gain for swing leg [N/(m/s)] (x,y,z)
       DblArray3 eefm_swing_pos_damping_gain;
-      /// hogehoge
-      //boolean segway_use_zmp_feedback;
+      /// zmp acc gain k (0 < k < 1)
+      double zmp_accgain;
       /// Yaw-direction minisegway control P gain
       double segway_av_yaw_pgain;
       /// Yaw-direction minisegway control I gain
