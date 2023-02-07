@@ -1580,8 +1580,6 @@ void Stabilizer::getActualParameters ()
         //calc raw values
         foot_origin_vel_r = (foot_origin_pos_r - foot_origin_pos_r_prev)/dt;
         foot_origin_acc_r = (foot_origin_vel_r - foot_origin_vel_r_prev)/dt;
-        foot_origin_pos_r_prev = foot_origin_pos_r;
-        foot_origin_vel_r_prev = foot_origin_vel_r;
 
         //calc filtered values
         foot_origin_pos_r_filtered_prev = foot_origin_pos_r_filtered;
@@ -1591,8 +1589,11 @@ void Stabilizer::getActualParameters ()
         //for go pos
         //foot_origin_vel_r_filtered = foot_origin_vel_r_filter -> passFilter((foot_origin_pos_r_filtered - foot_origin_pos_r_filtered_prev)/dt);
         foot_origin_vel_r_filtered = foot_origin_vel_r_filter -> passFilter((foot_origin_pos_r - foot_origin_pos_r_prev)/dt);
-
         foot_origin_acc_r_filtered = foot_origin_acc_r_filter -> passFilter((foot_origin_vel_r_filtered - foot_origin_vel_r_filtered_prev)/dt);
+
+        foot_origin_pos_r_prev = foot_origin_pos_r;
+        foot_origin_vel_r_prev = foot_origin_vel_r;
+
     }
     else{
         foot_origin_pos_r_prev = foot_origin_pos_r;
